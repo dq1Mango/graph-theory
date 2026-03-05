@@ -1,0 +1,38 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #f0f0f0;
+}
+
+.content-box {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  flex: 1;
+  align-items: flex-start;
+}
+
+.canvas-wrapper {
+  padding: 8px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  aspect-ratio: 1 / 1;
+  /* width: "100%"; */
+}
+
+.canvas {
+  display: block;
+  border-radius: 10px;
+  aspect-ratio: 1 / 1;
+  border: 2px solid #e0e0e0;
+}

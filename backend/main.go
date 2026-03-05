@@ -37,7 +37,7 @@ import (
 
 var (
 	listen = flag.String("listen", ":8080", "listen address")
-	dir    = flag.String("dir", ".", "directory to serve")
+	dir    = flag.String("dir", "../frontend/", "directory to serve")
 )
 
 func main() {
