@@ -6,8 +6,13 @@ import (
 
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
+	"github.com/hexops/vecty/event"
+	"github.com/hexops/vecty/prop"
+
 	// "github.com/hexops/vecty/event"
 	// "github.com/hexops/vecty/prop"
+	"syscall/js"
+
 	"github.com/hexops/vecty/style"
 	"github.com/hmdsefi/gograph"
 	"github.com/yuin/goldmark"
@@ -49,47 +54,42 @@ type PageView struct {
 
 // Render implements the vecty.Component interface.
 func (p *PageView) Render() vecty.ComponentOrHTML {
-	return elem.Body(
-		// Display a textarea on the right-hand side of the page.
-		// elem.Div(
-		// vecty.Markup(
-		// 	vecty.Style("float", "right"),
-		// ),
-		// elem.TextArea(
-		// 	vecty.Markup(
-		// 		vecty.Style("font-family", "monospace"),
-		// 		vecty.Property("rows", 14),
-		// 		vecty.Property("cols", 70),
-		//
-		// 		// When input is typed into the textarea, update the local
-		// 		// component state and rerender.
-		// 		event.Input(func(e *vecty.Event) {
-		// 			p.Input = e.Target.Get("value").String()
-		// 			vecty.Rerender(p)
-		// 		}),
-		// 	),
-		// 	vecty.Text(p.Input), // initial textarea text.
-		// ),
-		// ),
 
-		// Render the markdown.
-		&Markdown{Input: p.Input},
+	graph := GraphCanvas{Size: 100, Id: "main-canvas"}
+
+	return elem.Body(
+
+		elem.Div(
+			elem.Header(
+				elem.Heading1(vecty.Text("Graph Theory Visualizations")),
+				elem.Heading4(vecty.Text("This is a subtitle I'm sure I wont forget about")),
+			),
+		),
 
 		elem.Div(
 			vecty.Markup(
 				vecty.Class("content-box"),
 			),
+
 			elem.Div(
-				&Button{text: "testing"},
+				vecty.Markup(
+					vecty.Class("button-box"),
+				),
+
+				&Button{text: "testing", onClick: func(e *vecty.Event) { fmt.Println("Clicked!") }},
+				&Button{text: "add node", onClick: func(e *vecty.Event) { graph.addNextVertex() }},
 			),
-			&GraphCanvas{Size: style.Size("100%")},
+			&graph,
 		),
 	)
 }
 
 type GraphCanvas struct {
 	vecty.Core
-	Size style.Size
+	ctx   js.Value
+	Id    string
+	Size  uint
+	Graph gograph.Graph[uint]
 }
 
 func (c *GraphCanvas) Render() vecty.ComponentOrHTML {
@@ -98,10 +98,11 @@ func (c *GraphCanvas) Render() vecty.ComponentOrHTML {
 		elem.Canvas(
 			vecty.Markup(
 				vecty.Class("canvas"),
-				// style.Height(c.Size),
-				style.Width(c.Size),
-				vecty.Attribute("width", "500"),
-				vecty.Attribute("height", "500"),
+				prop.ID(c.Id),
+				// this should be in the style sheet but for some reason
+				// style.Width(style.Size("100%")),
+				// vecty.Attribute("width", "500"),
+				// vecty.Attribute("height", "500"),
 				// style.Color("blue"),
 			),
 			// vecty.Property("height", 20),
@@ -109,16 +110,94 @@ func (c *GraphCanvas) Render() vecty.ComponentOrHTML {
 	)
 }
 
+func (c *GraphCanvas) SetCanvasTransform() {
+
+	canvas := c.ctx.Get("canvas")
+
+	width := canvas.Get("width").Float()
+	height := canvas.Get("height").Float()
+
+	scaleX, scaleY := width, height
+
+	c.ctx.Call("setTransform", scaleX, 0, 0, -scaleY, width/2, height/2)
+
+}
+
+func (c *GraphCanvas) Mount() {
+	canvas := js.Global().Get("document").Call("getElementById", c.Id)
+	c.ctx = canvas.Call("getContext", "2d")
+
+	c.SetCanvasTransform()
+
+	// safe to draw here, DOM is ready
+	c.ctx.Set("fillStyle", "red")
+	c.ctx.Call("fillRect", 0, 0, 100, 100)
+}
+
+func (g *GraphCanvas) Clear() {
+	g.ctx.Call("clearRect", 0, 0, 500, 500)
+}
+
+func (g *GraphCanvas) DrawNode() {}
+
+func (c *GraphCanvas) Draw() {
+	c.Clear()
+
+	order := c.Graph.Order()
+
+	if order == 0 {
+		return
+	} else if order == 1 {
+
+	}
+
+}
+
+func (c *GraphCanvas) addNextVertex() error {
+	order := uint(c.Graph.Order())
+
+	c.Graph.AddVertex(gograph.NewVertex(order))
+
+	return nil
+}
+
+type Graphs struct {
+	// list of graphs
+	graphs   vecty.List
+	selected uint
+}
+
+func (g *Graphs) Render() vecty.ComponentOrHTML {
+	return elem.Div(
+		vecty.Markup(
+			vecty.Class("graph-list"),
+		),
+		g.graphs,
+	)
+}
+
+func (_ Graphs) New(amount int) Graphs {
+	graphs := make(vecty.List, 0, amount)
+	for range amount {
+		graphs = append(graphs, &GraphCanvas{})
+	}
+
+	return Graphs{graphs: graphs, selected: 0}
+}
+
 type Button struct {
 	vecty.Core
-	text     string
-	callback func(*vecty.Event)
+	text    string
+	onClick func(*vecty.Event)
 }
 
 func (b *Button) Render() vecty.ComponentOrHTML {
 	return elem.Div(
 		elem.Button(
 			vecty.Text(b.text),
+			vecty.Markup(
+				event.Click(b.onClick),
+			),
 		),
 	)
 }
