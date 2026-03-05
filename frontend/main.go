@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"math"
 
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
@@ -13,10 +14,24 @@ import (
 	// "github.com/hexops/vecty/prop"
 	"syscall/js"
 
-	"github.com/hexops/vecty/style"
+	// "github.com/hexops/vecty/style"
 	"github.com/hmdsefi/gograph"
 	"github.com/yuin/goldmark"
 )
+
+type Point struct {
+	X float64
+	Y float64
+}
+
+func pointFromTheta(theta float64) Point {
+	return Point{X: math.Cos(theta), Y: math.Sin(theta)}
+}
+
+func (p *Point) scale(r float64) {
+	p.X *= r
+	p.Y *= r
+}
 
 func testGraphing() {
 	graph := gograph.New[int](gograph.Acyclic())
@@ -38,24 +53,18 @@ func main() {
 
 	vecty.SetTitle("Markdown Demo")
 	vecty.AddStylesheet("style.css")
-	vecty.RenderBody(&PageView{
-		Input: `# Markdown Example
-
-This is a live editor, try editing the Markdown on the right of the page.
-`,
-	})
+	vecty.RenderBody(&PageView{})
 }
 
 // PageView is our main page component.
 type PageView struct {
 	vecty.Core
-	Input string
 }
 
 // Render implements the vecty.Component interface.
 func (p *PageView) Render() vecty.ComponentOrHTML {
 
-	graph := GraphCanvas{Size: 100, Id: "main-canvas"}
+	graph := initGraphCanvas(100, "main-canvas")
 
 	return elem.Body(
 
@@ -92,6 +101,13 @@ type GraphCanvas struct {
 	Graph gograph.Graph[uint]
 }
 
+func initGraphCanvas(size uint, id string) GraphCanvas {
+
+	graph := GraphCanvas{Size: size, Id: id, Graph: gograph.New[uint]()}
+
+	return graph
+}
+
 func (c *GraphCanvas) Render() vecty.ComponentOrHTML {
 	return elem.Div(
 		vecty.Markup(vecty.Class("canvas-wrapper")),
@@ -101,8 +117,6 @@ func (c *GraphCanvas) Render() vecty.ComponentOrHTML {
 				prop.ID(c.Id),
 				// this should be in the style sheet but for some reason
 				// style.Width(style.Size("100%")),
-				// vecty.Attribute("width", "500"),
-				// vecty.Attribute("height", "500"),
 				// style.Color("blue"),
 			),
 			// vecty.Property("height", 20),
@@ -110,16 +124,26 @@ func (c *GraphCanvas) Render() vecty.ComponentOrHTML {
 	)
 }
 
-func (c *GraphCanvas) SetCanvasTransform() {
+func (g *GraphCanvas) SetCanvasTransform() {
 
-	canvas := c.ctx.Get("canvas")
+	// dpr := js.Global().Get("devicePixelRatio").Float()
+	canvas := g.ctx.Get("canvas")
 
-	width := canvas.Get("width").Float()
-	height := canvas.Get("height").Float()
+	width := canvas.Get("clientWidth").Float()
+	height := canvas.Get("clientHeight").Float()
 
-	scaleX, scaleY := width, height
+	canvas.Set("width", width)
+	canvas.Set("height", height)
 
-	c.ctx.Call("setTransform", scaleX, 0, 0, -scaleY, width/2, height/2)
+	fmt.Printf("width: %f, height: %f\n", width, height)
+
+	if width != height {
+		fmt.Printf("width and height of canvas: %s not equal\n", g.Id)
+	}
+
+	scale := math.Min(width, height) / (float64(g.Size))
+
+	g.ctx.Call("setTransform", scale, 0, 0, -scale, width/2, height/2)
 
 }
 
@@ -131,32 +155,55 @@ func (c *GraphCanvas) Mount() {
 
 	// safe to draw here, DOM is ready
 	c.ctx.Set("fillStyle", "red")
-	c.ctx.Call("fillRect", 0, 0, 100, 100)
+	c.ctx.Call("fillRect", 0, 0, 50, 25)
 }
 
 func (g *GraphCanvas) Clear() {
-	g.ctx.Call("clearRect", 0, 0, 500, 500)
+	s := int(g.Size)
+	// fmt.Println(-g.Size / 2)
+	// g.ctx.Call("clearRect", -g.Size/2, g.Size/2, g.Size, -g.Size)
+	g.ctx.Call("clearRect", -s/2, s/2, s, -s)
 }
 
-func (g *GraphCanvas) DrawNode() {}
+func (g *GraphCanvas) DrawNode(point Point) {
 
-func (c *GraphCanvas) Draw() {
-	c.Clear()
+	fmt.Println("drawing a node")
+	radius := 5
 
-	order := c.Graph.Order()
+	// g.ctx.Set("strokeStyle", "blue")
+	g.ctx.Set("lineWidth", 1)
+	g.ctx.Call("beginPath")
+	g.ctx.Call("arc", point.X, point.Y, radius, 0, 2*math.Pi)
+	g.ctx.Call("stroke")
+}
 
-	if order == 0 {
-		return
+func (g *GraphCanvas) Draw() {
+	g.Clear()
+
+	order := g.Graph.Order()
+	radius := 30.0
+
+	if order > 1 {
+		deltaTheta := 2 * math.Pi / float64(order)
+
+		for i := range order {
+			point := pointFromTheta(deltaTheta * float64(i))
+			point.scale(radius)
+
+			g.DrawNode(point)
+		}
+
 	} else if order == 1 {
-
+		g.DrawNode(Point{X: 0, Y: 0})
 	}
-
 }
 
 func (c *GraphCanvas) addNextVertex() error {
 	order := uint(c.Graph.Order())
 
 	c.Graph.AddVertex(gograph.NewVertex(order))
+
+	c.Draw()
 
 	return nil
 }
