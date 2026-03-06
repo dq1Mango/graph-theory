@@ -40,6 +40,8 @@ type AddVertex struct {
 	connected bool
 }
 
+type RecomputeVertexPositions struct{}
+
 type Draw struct{}
 
 // type AddEdge struct {
@@ -113,11 +115,22 @@ type GraphCanvas struct {
 	Size    uint
 	Actions chan any
 	Graph   gograph.Graph[uint]
+
+	bijection       []uint
+	nextLabel       uint
+	vertexPositions map[*gograph.Vertex[uint]]Point
 }
 
 func initGraphCanvas(size uint, id string) GraphCanvas {
 
-	graph := GraphCanvas{Size: size, Id: id, Graph: gograph.New[uint](), Actions: make(chan any, 10)}
+	graph := GraphCanvas{
+		Size:            size,
+		Id:              id,
+		Graph:           gograph.New[uint](),
+		Actions:         make(chan any, 10),
+		bijection:       make([]uint, 0),
+		nextLabel:       0,
+		vertexPositions: make(map[*gograph.Vertex[uint]]Point)}
 
 	return graph
 }
@@ -186,7 +199,6 @@ func (g *GraphCanvas) Clear() {
 
 func (g *GraphCanvas) DrawNode(point Point) {
 
-	fmt.Println("drawing a node")
 	radius := 5
 
 	// g.ctx.Set("strokeStyle", "blue")
@@ -215,55 +227,86 @@ func (g *GraphCanvas) DrawEdge(from Point, to Point) {
 func (g *GraphCanvas) Draw() {
 	g.Clear()
 
-	order := g.Graph.Order()
-	radius := 30.0
+	// order := g.Graph.Order()
+	// radius := 30.0
 
-	if order > 1 {
-		vertexPositions := make(map[*gograph.Vertex[uint]]Point, 0)
-
-		deltaTheta := 2 * math.Pi / float64(order)
-
-		for i, v := range g.Graph.GetAllVertices() {
-			point := pointFromTheta(deltaTheta * float64(i))
-			point.scale(radius)
-
-			vertexPositions[v] = point
-
-		}
-
-		for _, edge := range g.Graph.AllEdges() {
-			g.DrawEdge(vertexPositions[edge.Source()], vertexPositions[edge.Destination()])
-		}
-
-		// draw the verticies after the edges to draw over them
-		for _, point := range vertexPositions {
-			g.DrawNode(point)
-		}
-
-	} else if order == 1 {
-		g.DrawNode(Point{X: 0, Y: 0})
+	for _, edge := range g.Graph.AllEdges() {
+		g.DrawEdge(g.vertexPositions[edge.Source()], g.vertexPositions[edge.Destination()])
 	}
+
+	// draw the verticies after the edges to draw over them
+	for _, point := range g.vertexPositions {
+		g.DrawNode(point)
+
+	}
+
+	g.ctx.Call("save")
+	g.ctx.Set("fillStyle", "white")
+	g.ctx.Set("textBaseline", "middle")
+	g.ctx.Set("textAlign", "center")
+
+	// ALERT: floating magic number over here
+	fontSize := float64(g.Size) * 0.067
+	g.ctx.Set("font", fmt.Sprintf("%.2fpx Arial", fontSize))
+
+	// flip y back to normal for this draw call
+	g.ctx.Call("transform", 1, 0, 0, -1, 0, 0)
+	for i, point := range g.vertexPositions {
+
+		// y coordinate needs to be negated since we flipped
+		g.ctx.Call("fillText", i.Label(), point.X, -point.Y)
+	}
+
+	g.ctx.Call("restore")
 
 	fmt.Println("drew da graph")
 }
 
-func (c *GraphCanvas) addNextVertex(connected bool) Action {
-	order := uint(c.Graph.Order())
+func (g *GraphCanvas) addNextVertex(connected bool) Action {
+	// order := uint(c.Graph.Order())
 
-	vertex := gograph.NewVertex(order)
+	vertex := gograph.NewVertex(g.nextLabel)
+	g.bijection = append(g.bijection, g.nextLabel)
+	g.nextLabel++
 
 	if connected {
-		for _, v := range c.Graph.GetAllVertices() {
-			c.Graph.AddEdge(vertex, v)
+		for _, v := range g.Graph.GetAllVertices() {
+			g.Graph.AddEdge(vertex, v)
 		}
 	}
-	c.Graph.AddVertex(vertex)
+	g.Graph.AddVertex(vertex)
 
 	// c.Actions <- Draw{}
 
 	fmt.Println("added vertex")
 
+	return RecomputeVertexPositions{}
+}
+
+func (g *GraphCanvas) RecomputeVertexPositions() Action {
+	order := g.Graph.Order()
+	verticies := g.Graph.GetAllVertices()
+	radius := 30.0
+
+	if order > 1 {
+		// vertexPositions := make(map[*gograph.Vertex[uint]]Point, 0)
+
+		deltaTheta := 2 * math.Pi / float64(order)
+
+		for i, v := range verticies {
+			point := pointFromTheta(deltaTheta * float64(i))
+			point.scale(radius)
+
+			g.vertexPositions[v] = point
+
+		}
+
+	} else if order == 1 {
+		g.vertexPositions[verticies[0]] = Point{X: 0, Y: 0}
+	}
+
 	return Draw{}
+
 }
 
 func (g *GraphCanvas) handleActions() {
@@ -275,6 +318,10 @@ func (g *GraphCanvas) handleActions() {
 
 			case AddVertex:
 				a = g.addNextVertex(action.connected)
+				continue
+
+			case RecomputeVertexPositions:
+				a = g.RecomputeVertexPositions()
 				continue
 
 			case Draw:
