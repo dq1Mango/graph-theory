@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	// "os"
 
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
@@ -33,6 +34,18 @@ func (p *Point) scale(r float64) {
 	p.Y *= r
 }
 
+type Action any
+
+type AddVertex struct {
+	connected bool
+}
+
+type Draw struct{}
+
+// type AddEdge struct {
+// 	U
+// }
+
 func testGraphing() {
 	graph := gograph.New[int](gograph.Acyclic())
 
@@ -49,7 +62,7 @@ func testGraphing() {
 
 func main() {
 	fmt.Println("Hello World!")
-	testGraphing()
+	// testGraphing()
 
 	vecty.SetTitle("Markdown Demo")
 	vecty.AddStylesheet("style.css")
@@ -86,7 +99,7 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 				),
 
 				&Button{text: "testing", onClick: func(e *vecty.Event) { fmt.Println("Clicked!") }},
-				&Button{text: "add node", onClick: func(e *vecty.Event) { graph.addNextVertex() }},
+				&Button{text: "add node", onClick: func(e *vecty.Event) { graph.Actions <- AddVertex{connected: true} }},
 			),
 			&graph,
 		),
@@ -95,15 +108,16 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 
 type GraphCanvas struct {
 	vecty.Core
-	ctx   js.Value
-	Id    string
-	Size  uint
-	Graph gograph.Graph[uint]
+	ctx     js.Value
+	Id      string
+	Size    uint
+	Actions chan any
+	Graph   gograph.Graph[uint]
 }
 
 func initGraphCanvas(size uint, id string) GraphCanvas {
 
-	graph := GraphCanvas{Size: size, Id: id, Graph: gograph.New[uint]()}
+	graph := GraphCanvas{Size: size, Id: id, Graph: gograph.New[uint](), Actions: make(chan any, 10)}
 
 	return graph
 }
@@ -135,7 +149,7 @@ func (g *GraphCanvas) SetCanvasTransform() {
 	canvas.Set("width", width)
 	canvas.Set("height", height)
 
-	fmt.Printf("width: %f, height: %f\n", width, height)
+	// fmt.Printf("width: %f, height: %f\n", width, height)
 
 	if width != height {
 		fmt.Printf("width and height of canvas: %s not equal\n", g.Id)
@@ -156,6 +170,11 @@ func (c *GraphCanvas) Mount() {
 	// safe to draw here, DOM is ready
 	c.ctx.Set("fillStyle", "red")
 	c.ctx.Call("fillRect", 0, 0, 50, 25)
+
+	go func() {
+		c.handleActions()
+	}()
+
 }
 
 func (g *GraphCanvas) Clear() {
@@ -172,8 +191,24 @@ func (g *GraphCanvas) DrawNode(point Point) {
 
 	// g.ctx.Set("strokeStyle", "blue")
 	g.ctx.Set("lineWidth", 1)
+	g.ctx.Set("strokeStyle", "black")
+	g.ctx.Set("fillStyle", "grey")
+
 	g.ctx.Call("beginPath")
 	g.ctx.Call("arc", point.X, point.Y, radius, 0, 2*math.Pi)
+
+	g.ctx.Call("fill")
+	g.ctx.Call("stroke")
+}
+
+func (g *GraphCanvas) DrawEdge(from Point, to Point) {
+
+	g.ctx.Set("lineWidth", 1)
+
+	g.ctx.Call("beginPath")
+	g.ctx.Call("moveTo", from.X, from.Y)
+	g.ctx.Call("lineTo", to.X, to.Y)
+
 	g.ctx.Call("stroke")
 }
 
@@ -184,28 +219,75 @@ func (g *GraphCanvas) Draw() {
 	radius := 30.0
 
 	if order > 1 {
+		vertexPositions := make(map[*gograph.Vertex[uint]]Point, 0)
+
 		deltaTheta := 2 * math.Pi / float64(order)
 
-		for i := range order {
+		for i, v := range g.Graph.GetAllVertices() {
 			point := pointFromTheta(deltaTheta * float64(i))
 			point.scale(radius)
 
+			vertexPositions[v] = point
+
+		}
+
+		for _, edge := range g.Graph.AllEdges() {
+			g.DrawEdge(vertexPositions[edge.Source()], vertexPositions[edge.Destination()])
+		}
+
+		// draw the verticies after the edges to draw over them
+		for _, point := range vertexPositions {
 			g.DrawNode(point)
 		}
 
 	} else if order == 1 {
 		g.DrawNode(Point{X: 0, Y: 0})
 	}
+
+	fmt.Println("drew da graph")
 }
 
-func (c *GraphCanvas) addNextVertex() error {
+func (c *GraphCanvas) addNextVertex(connected bool) Action {
 	order := uint(c.Graph.Order())
 
-	c.Graph.AddVertex(gograph.NewVertex(order))
+	vertex := gograph.NewVertex(order)
 
-	c.Draw()
+	if connected {
+		for _, v := range c.Graph.GetAllVertices() {
+			c.Graph.AddEdge(vertex, v)
+		}
+	}
+	c.Graph.AddVertex(vertex)
 
-	return nil
+	// c.Actions <- Draw{}
+
+	fmt.Println("added vertex")
+
+	return Draw{}
+}
+
+func (g *GraphCanvas) handleActions() {
+	for {
+		a := <-g.Actions
+		for a != nil {
+
+			switch action := a.(type) {
+
+			case AddVertex:
+				a = g.addNextVertex(action.connected)
+				continue
+
+			case Draw:
+				g.Draw()
+
+			default:
+				// fmt.Fprintln(os.Stderr, "Unhandled action of type: ", action)
+				fmt.Println("Unhandled action of type: ", action)
+			}
+
+			a = nil
+		}
+	}
 }
 
 type Graphs struct {
