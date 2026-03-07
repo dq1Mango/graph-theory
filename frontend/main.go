@@ -225,24 +225,28 @@ func (c *GraphCanvas) Render() vecty.ComponentOrHTML {
 
 func (g *GraphCanvas) SetCanvasTransform() {
 
-	// dpr := js.Global().Get("devicePixelRatio").Float()
+	dpr := js.Global().Get("devicePixelRatio").Float()
 	canvas := g.ctx.Get("canvas")
+	rect := canvas.Call("getBoundingClientRect")
 
-	width := canvas.Get("clientWidth").Float()
-	height := canvas.Get("clientHeight").Float()
-
-	canvas.Set("width", width)
-	canvas.Set("height", height)
-
-	// fmt.Printf("width: %f, height: %f\n", width, height)
+	width := rect.Get("width").Float()
+	height := rect.Get("width").Float()
 
 	if width != height {
 		fmt.Printf("width and height of canvas: %s not equal\n", g.Id)
 	}
 
-	scale := math.Min(width, height) / (float64(g.Size))
+	fmt.Printf("width: %f, height: %f\n", width, height)
 
-	g.ctx.Call("setTransform", scale, 0, 0, -scale, width/2, height/2)
+	canvas.Set("width", width*dpr)
+	canvas.Set("height", height*dpr)
+
+	canvas.Get("style").Set("width", fmt.Sprintf("%fpx", width))
+	canvas.Get("style").Set("height", fmt.Sprintf("%fpx", height))
+
+	scale := dpr * math.Min(width, height) / (float64(g.Size))
+
+	g.ctx.Call("setTransform", scale, 0, 0, -scale, dpr*width/2, dpr*height/2)
 
 }
 
