@@ -108,6 +108,78 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 	)
 }
 
+type Bijection interface {
+	Forwards(from uint) uint
+	Backwards(to uint) uint
+
+	Add(from, to uint)
+	Remove(from, to uint)
+
+	Len() int
+	Labels() []uint
+}
+
+type PosIntBijection struct {
+	forwards []uint
+	// backwards map[uint]uint
+}
+
+// Labels implements Bijection.
+func (p *PosIntBijection) Labels() []uint {
+	labels := make([]uint, p.Len())
+
+	for i := range labels {
+		labels[i] = uint(i)
+	}
+
+	return labels
+}
+
+// Forwards implements Bijection.
+func (p *PosIntBijection) Forwards(from uint) uint {
+
+	// gograph.Graph
+	return p.forwards[from]
+}
+
+// Backwards implements Bijection.
+func (p *PosIntBijection) Backwards(to uint) uint {
+
+	for index, value := range p.forwards {
+		if value == to {
+			return uint(index)
+		}
+	}
+
+	return 0
+	// return p.backwards[to]
+}
+
+// Remove implements Bijection.
+func (p *PosIntBijection) Remove(from uint, to uint) {
+	// delete(p.backwards, to)
+	p.forwards = append(p.forwards[0:from], p.forwards[from+1:]...)
+
+}
+
+// Set implements Bijection.
+func (p *PosIntBijection) Add(from, to uint) {
+	p.forwards = append(p.forwards, to)
+
+	// panic("unimplemented")
+}
+
+func (p *PosIntBijection) Len() int {
+	// length := len(p.backwards)
+
+	return len(p.forwards)
+}
+
+func NewBijection() Bijection {
+	return &PosIntBijection{forwards: make([]uint, 0)}
+
+}
+
 type GraphCanvas struct {
 	vecty.Core
 	ctx     js.Value
@@ -116,9 +188,9 @@ type GraphCanvas struct {
 	Actions chan any
 	Graph   gograph.Graph[uint]
 
-	bijection       []uint
+	bijection       Bijection
 	nextLabel       uint
-	vertexPositions map[*gograph.Vertex[uint]]Point
+	vertexPositions map[uint]Point
 }
 
 func initGraphCanvas(size uint, id string) GraphCanvas {
@@ -128,9 +200,9 @@ func initGraphCanvas(size uint, id string) GraphCanvas {
 		Id:              id,
 		Graph:           gograph.New[uint](),
 		Actions:         make(chan any, 10),
-		bijection:       make([]uint, 0),
+		bijection:       NewBijection(),
 		nextLabel:       0,
-		vertexPositions: make(map[*gograph.Vertex[uint]]Point)}
+		vertexPositions: make(map[uint]Point)}
 
 	return graph
 }
@@ -231,7 +303,7 @@ func (g *GraphCanvas) Draw() {
 	// radius := 30.0
 
 	for _, edge := range g.Graph.AllEdges() {
-		g.DrawEdge(g.vertexPositions[edge.Source()], g.vertexPositions[edge.Destination()])
+		g.DrawEdge(g.vertexPositions[edge.Source().Label()], g.vertexPositions[edge.Destination().Label()])
 	}
 
 	// draw the verticies after the edges to draw over them
@@ -251,10 +323,11 @@ func (g *GraphCanvas) Draw() {
 
 	// flip y back to normal for this draw call
 	g.ctx.Call("transform", 1, 0, 0, -1, 0, 0)
-	for i, point := range g.vertexPositions {
+	for _, label := range g.bijection.Labels() {
+		point := g.vertexPositions[g.bijection.Forwards(label)]
 
 		// y coordinate needs to be negated since we flipped
-		g.ctx.Call("fillText", i.Label(), point.X, -point.Y)
+		g.ctx.Call("fillText", label, point.X, -point.Y)
 	}
 
 	g.ctx.Call("restore")
@@ -266,7 +339,8 @@ func (g *GraphCanvas) addNextVertex(connected bool) Action {
 	// order := uint(c.Graph.Order())
 
 	vertex := gograph.NewVertex(g.nextLabel)
-	g.bijection = append(g.bijection, g.nextLabel)
+	// g.bijection = append(g.bijection, g.nextLabel)
+	g.bijection.Add(0, g.nextLabel)
 	g.nextLabel++
 
 	if connected {
@@ -285,24 +359,30 @@ func (g *GraphCanvas) addNextVertex(connected bool) Action {
 
 func (g *GraphCanvas) RecomputeVertexPositions() Action {
 	order := g.Graph.Order()
-	verticies := g.Graph.GetAllVertices()
+	// verticies := g.Graph.GetAllVertices()
+	labels := g.bijection.Labels()
+	fmt.Println(labels)
 	radius := 30.0
+
+	g.vertexPositions = make(map[uint]Point)
 
 	if order > 1 {
 		// vertexPositions := make(map[*gograph.Vertex[uint]]Point, 0)
 
 		deltaTheta := 2 * math.Pi / float64(order)
 
-		for i, v := range verticies {
+		for i, label := range labels {
 			point := pointFromTheta(deltaTheta * float64(i))
 			point.scale(radius)
+
+			v := g.bijection.Forwards(label)
 
 			g.vertexPositions[v] = point
 
 		}
 
 	} else if order == 1 {
-		g.vertexPositions[verticies[0]] = Point{X: 0, Y: 0}
+		g.vertexPositions[labels[0]] = Point{X: 0, Y: 0}
 	}
 
 	return Draw{}
