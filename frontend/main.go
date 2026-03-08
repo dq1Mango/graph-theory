@@ -76,8 +76,18 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 					vecty.Class("button-box"),
 				),
 
-				&components.Button{Text: "testing", OnClick: func(e *vecty.Event) { fmt.Println("Clicked!") }},
-				&components.Button{Text: "add node", OnClick: func(e *vecty.Event) { graph.Actions <- &actions.AddVertex{Connected: true} }},
+				&components.Button{
+					Text:    "testing",
+					OnClick: func(e *vecty.Event) { fmt.Println("Clicked!") },
+				},
+				&components.Button{
+					Text:    "add node",
+					OnClick: func(e *vecty.Event) { graph.Actions <- &actions.AddVertex{Connected: true} },
+				},
+				&components.Button{
+					Text:    "remove vertex",
+					OnClick: func(e *vecty.Event) { graph.Actions <- &actions.RemoveVertex{Id: graph.SelectedVertex} },
+				},
 			),
 			&graph,
 		),

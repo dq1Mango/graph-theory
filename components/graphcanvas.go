@@ -27,12 +27,12 @@ type GraphCanvas struct {
 	Actions chan any
 	Graph   gograph.Graph[uint]
 
-	bijection       model.Bijection
-	nextLabel       uint
-	vertexPositions map[uint]model.Point
-	highlitedVertex uint
+	Bijection       model.Bijection
+	NextLabel       uint
+	VertexPositions map[uint]model.Point
+	SelectedVertex  *uint
 
-	transform model.Transform
+	Transform model.Transform
 }
 
 func InitGraphCanvas(size uint, id string) GraphCanvas {
@@ -42,9 +42,9 @@ func InitGraphCanvas(size uint, id string) GraphCanvas {
 		Id:              id,
 		Graph:           gograph.New[uint](),
 		Actions:         make(chan any, 10),
-		bijection:       model.NewBijection(),
-		nextLabel:       0,
-		vertexPositions: make(map[uint]model.Point)}
+		Bijection:       model.NewBijection(),
+		NextLabel:       0,
+		VertexPositions: make(map[uint]model.Point)}
 
 	return graph
 }
@@ -62,10 +62,7 @@ func (g *GraphCanvas) Render() vecty.ComponentOrHTML {
 					// and with WASM we only have one os thread,
 					// so if we are busy in any way just dont add more fuel to the fire
 					if len(g.Actions) < 2 {
-						point := model.Point{X: e.Get("offsetX").Float(), Y: e.Get("offsetY").Float()}
-						point.Scale(2)
-						point = g.transform.Backwards(point)
-
+						point := g.PointFromMouseEvent(e)
 						// non blocking send just in case
 						select {
 						case g.Actions <- &actions.MouseMove{
@@ -76,10 +73,28 @@ func (g *GraphCanvas) Render() vecty.ComponentOrHTML {
 						}
 					}
 				}),
+
+				event.MouseDown(func(e *vecty.Event) {
+					point := g.PointFromMouseEvent(e)
+
+					g.Actions <- &actions.MouseDown{Pos: point}
+				}),
+
+				// these closures are rly nice i have to say
 			),
-			// vecty.Property("height", 20),
 		),
 	)
+}
+
+func (g *GraphCanvas) PointFromMouseEvent(e *vecty.Event) model.Point {
+	point := model.Point{
+		X: e.Get("offsetX").Float(),
+		Y: e.Get("offsetY").Float(),
+	}
+	point.Scale(2)
+	point = g.Transform.Backwards(point)
+	return point
+
 }
 
 func (g *GraphCanvas) SetCanvasTransform() {
@@ -109,7 +124,7 @@ func (g *GraphCanvas) SetCanvasTransform() {
 
 	g.ctx.Call("setTransform", scale, 0, 0, -scale, shift, shift)
 
-	g.transform = model.NewTransform(scale, -scale, shift, shift)
+	g.Transform = model.NewTransform(scale, -scale, shift, shift)
 }
 
 func (c *GraphCanvas) Mount() {
@@ -172,15 +187,24 @@ func (g *GraphCanvas) Draw() {
 	g.ctx.Set("strokeStyle", "black")
 
 	for _, edge := range g.Graph.AllEdges() {
-		g.DrawEdge(g.vertexPositions[edge.Source().Label()], g.vertexPositions[edge.Destination().Label()])
+		g.DrawEdge(
+			g.VertexPositions[edge.Source().Label()],
+			g.VertexPositions[edge.Destination().Label()],
+		)
 	}
 
 	g.ctx.Set("fillStyle", "grey")
 
 	// draw the verticies after the edges to draw over them
-	for _, point := range g.vertexPositions {
+	for _, point := range g.VertexPositions {
 		g.DrawNode(point)
 
+	}
+
+	// highlight the selected one
+	if g.SelectedVertex != nil {
+		g.ctx.Set("strokeStyle", "red")
+		g.DrawNodeOutline(g.VertexPositions[*g.SelectedVertex])
 	}
 
 	g.ctx.Call("save")
@@ -194,8 +218,8 @@ func (g *GraphCanvas) Draw() {
 
 	// flip y back to normal for this draw call
 	g.ctx.Call("transform", 1, 0, 0, -1, 0, 0)
-	for _, label := range g.bijection.Labels() {
-		point := g.vertexPositions[g.bijection.Forwards(label)]
+	for _, label := range g.Bijection.Labels() {
+		point := g.VertexPositions[g.Bijection.Forwards(label)]
 
 		// y coordinate needs to be negated since we flipped
 		g.ctx.Call("fillText", label, point.X, -point.Y)
@@ -211,28 +235,58 @@ func (g *GraphCanvas) HighlightActiveVertex(mousePos model.Point) actions.Action
 	g.ctx.Set("lineWidth", 1)
 	g.ctx.Set("strokeStyle", "black")
 
-	for id, pos := range g.vertexPositions {
+	for _, pos := range g.VertexPositions {
+
 		if mousePos.Distance(pos) <= VERTEX_RADIUS+1 {
 
-			g.highlitedVertex = id
-			fmt.Println("highlited vertex id:", id)
-			g.ctx.Set("strokeStyle", "red")
+			g.ctx.Set("strokeStyle", "purple")
 		}
 
 		g.DrawNodeOutline(pos)
 		g.ctx.Set("strokeStyle", "black")
 	}
 
+	g.HighlightSelectedVertex()
+
 	return nil
+}
+
+func (g *GraphCanvas) HighlightSelectedVertex() {
+	if id := g.SelectedVertex; id != nil {
+		g.ctx.Set("lineWidth", 1)
+		g.ctx.Set("strokeStyle", "red")
+		g.DrawNodeOutline(g.VertexPositions[*id])
+	}
+}
+
+func (g *GraphCanvas) SelectVertex(mousePos model.Point) actions.Action {
+	fmt.Println("selecting vertex")
+
+	for id, pos := range g.VertexPositions {
+		if mousePos.Distance(pos) <= VERTEX_RADIUS+1 {
+
+			if g.SelectedVertex != nil && *g.SelectedVertex == id {
+				g.SelectedVertex = nil
+			} else {
+				g.SelectedVertex = &id
+			}
+
+			return &actions.Draw{}
+		}
+	}
+
+	g.SelectedVertex = nil
+
+	return &actions.Draw{}
 }
 
 func (g *GraphCanvas) addNextVertex(connected bool) actions.Action {
 	// order := uint(c.Graph.Order())
 
-	vertex := gograph.NewVertex(g.nextLabel)
+	vertex := gograph.NewVertex(g.NextLabel)
 	// g.bijection = append(g.bijection, g.nextLabel)
-	g.bijection.Add(0, g.nextLabel)
-	g.nextLabel++
+	g.Bijection.Add(0, g.NextLabel)
+	g.NextLabel++
 
 	if connected {
 		for _, v := range g.Graph.GetAllVertices() {
@@ -248,14 +302,29 @@ func (g *GraphCanvas) addNextVertex(connected bool) actions.Action {
 	return &actions.RecomputeVertexPositions{}
 }
 
+func (g *GraphCanvas) RemoveVertex(id *uint) actions.Action {
+
+	if id != nil {
+		g.Graph.RemoveVertices(gograph.NewVertex(*id))
+
+		g.Bijection.Remove(g.Bijection.Backwards(*id), *id)
+
+		g.SelectedVertex = nil
+
+		return &actions.RecomputeVertexPositions{}
+	} else {
+		return &actions.PopupMessage{Message: "No Selected Vertex"}
+	}
+}
+
 func (g *GraphCanvas) RecomputeVertexPositions() actions.Action {
 	order := g.Graph.Order()
 	// verticies := g.Graph.GetAllVertices()
-	labels := g.bijection.Labels()
+	labels := g.Bijection.Labels()
 	fmt.Println(labels)
 	radius := CYCLE_RADIUS
 
-	g.vertexPositions = make(map[uint]model.Point)
+	g.VertexPositions = make(map[uint]model.Point)
 
 	if order > 1 {
 		// vertexPositions := make(map[*gograph.Vertex[uint]]model.Point, 0)
@@ -266,14 +335,14 @@ func (g *GraphCanvas) RecomputeVertexPositions() actions.Action {
 			point := model.PointFromTheta(deltaTheta * float64(i))
 			point.Scale(radius)
 
-			v := g.bijection.Forwards(label)
+			v := g.Bijection.Forwards(label)
 
-			g.vertexPositions[v] = point
+			g.VertexPositions[v] = point
 
 		}
 
 	} else if order == 1 {
-		g.vertexPositions[labels[0]] = model.Point{X: 0, Y: 0}
+		g.VertexPositions[labels[0]] = model.Point{X: 0, Y: 0}
 	}
 
 	fmt.Println("recomputed vertex positions")
@@ -293,6 +362,10 @@ func (g *GraphCanvas) handleActions() {
 				a = g.addNextVertex(action.Connected)
 				continue
 
+			case *actions.RemoveVertex:
+				a = g.RemoveVertex(action.Id)
+				continue
+
 			case *actions.RecomputeVertexPositions:
 				a = g.RecomputeVertexPositions()
 				continue
@@ -303,6 +376,14 @@ func (g *GraphCanvas) handleActions() {
 			case *actions.MouseMove:
 				// fmt.Println(action.pos)
 				g.HighlightActiveVertex(action.Pos)
+
+			case *actions.MouseDown:
+				a = g.SelectVertex(action.Pos)
+				// fmt.Printf("heres the type: %T\n", a)
+				continue
+
+			case *actions.PopupMessage:
+				fmt.Println("Popup: ", action.Message)
 
 			default:
 				// fmt.Fprintln(os.Stderr, "Unhandled action of type: ", action)

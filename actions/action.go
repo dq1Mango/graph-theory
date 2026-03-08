@@ -10,10 +10,22 @@ type AddVertex struct {
 	Connected bool
 }
 
+type RemoveVertex struct {
+	Id *uint
+}
+
 type RecomputeVertexPositions struct{}
 
 type Draw struct{}
 
 type MouseMove struct {
 	Pos model.Point
+}
+
+type MouseDown struct {
+	Pos model.Point
+}
+
+type PopupMessage struct {
+	Message string
 }
