@@ -20,6 +20,10 @@ import (
 	"github.com/yuin/goldmark"
 )
 
+const (
+	VERTEX_RADIUS = 5
+)
+
 type Point struct {
 	X float64
 	Y float64
@@ -29,9 +33,23 @@ func pointFromTheta(theta float64) Point {
 	return Point{X: math.Cos(theta), Y: math.Sin(theta)}
 }
 
+func (p *Point) Magnitude() float64 {
+	return math.Sqrt(p.X*p.X + p.Y*p.Y)
+}
+
 func (p *Point) scale(r float64) {
 	p.X *= r
 	p.Y *= r
+}
+
+func subtractPoint(p1, p2 Point) Point {
+	return Point{p1.X - p2.X, p1.Y - p2.Y}
+}
+
+func (p *Point) Distance(point Point) float64 {
+	distanceVector := subtractPoint(*p, point)
+
+	return distanceVector.Magnitude()
 }
 
 type Action any
@@ -43,6 +61,10 @@ type AddVertex struct {
 type RecomputeVertexPositions struct{}
 
 type Draw struct{}
+
+type MouseMove struct {
+	pos Point
+}
 
 // type AddEdge struct {
 // 	U
@@ -101,7 +123,7 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 				),
 
 				&Button{text: "testing", onClick: func(e *vecty.Event) { fmt.Println("Clicked!") }},
-				&Button{text: "add node", onClick: func(e *vecty.Event) { graph.Actions <- AddVertex{connected: true} }},
+				&Button{text: "add node", onClick: func(e *vecty.Event) { graph.Actions <- &AddVertex{connected: true} }},
 			),
 			&graph,
 		),
@@ -180,6 +202,22 @@ func NewBijection() Bijection {
 
 }
 
+type Transform struct {
+	scaleX, scaleY, shiftX, shiftY float64
+}
+
+func NewTransform(scaleX, scaleY, shiftX, shiftY float64) Transform {
+	return Transform{scaleX: scaleX, scaleY: scaleY, shiftX: shiftX, shiftY: shiftY}
+}
+
+func (t *Transform) Forwards(point Point) Point {
+	return Point{X: point.X*t.scaleX + t.shiftX, Y: point.Y*t.scaleY + t.shiftY}
+}
+
+func (t *Transform) Backwards(point Point) Point {
+	return Point{X: (point.X - t.shiftX) / t.scaleX, Y: (point.Y - t.shiftY) / t.scaleY}
+}
+
 type GraphCanvas struct {
 	vecty.Core
 	ctx     js.Value
@@ -191,6 +229,9 @@ type GraphCanvas struct {
 	bijection       Bijection
 	nextLabel       uint
 	vertexPositions map[uint]Point
+	highlitedVertex uint
+
+	transform Transform
 }
 
 func initGraphCanvas(size uint, id string) GraphCanvas {
@@ -207,16 +248,32 @@ func initGraphCanvas(size uint, id string) GraphCanvas {
 	return graph
 }
 
-func (c *GraphCanvas) Render() vecty.ComponentOrHTML {
+func (g *GraphCanvas) Render() vecty.ComponentOrHTML {
 	return elem.Div(
 		vecty.Markup(vecty.Class("canvas-wrapper")),
 		elem.Canvas(
 			vecty.Markup(
 				vecty.Class("canvas"),
-				prop.ID(c.Id),
-				// this should be in the style sheet but for some reason
-				// style.Width(style.Size("100%")),
-				// style.Color("blue"),
+				prop.ID(g.Id),
+
+				event.MouseMove(func(e *vecty.Event) {
+					// mouse position updates aren't super important,
+					// and with WASM we only have one os thread,
+					// so if we are busy in any way just dont add more fuel to the fire
+					if len(g.Actions) < 2 {
+						point := Point{X: e.Get("offsetX").Float(), Y: e.Get("offsetY").Float()}
+						point.scale(2)
+						point = g.transform.Backwards(point)
+
+						select {
+						case g.Actions <- &MouseMove{
+							pos: point,
+						}:
+						default:
+							fmt.Println("action buffer busy...")
+						}
+					}
+				}),
 			),
 			// vecty.Property("height", 20),
 		),
@@ -236,7 +293,7 @@ func (g *GraphCanvas) SetCanvasTransform() {
 		fmt.Printf("width and height of canvas: %s not equal\n", g.Id)
 	}
 
-	fmt.Printf("width: %f, height: %f\n", width, height)
+	// fmt.Printf("width: %f, height: %f\n", width, height)
 
 	canvas.Set("width", width*dpr)
 	canvas.Set("height", height*dpr)
@@ -246,8 +303,11 @@ func (g *GraphCanvas) SetCanvasTransform() {
 
 	scale := dpr * math.Min(width, height) / (float64(g.Size))
 
-	g.ctx.Call("setTransform", scale, 0, 0, -scale, dpr*width/2, dpr*height/2)
+	shift := dpr * width / 2
 
+	g.ctx.Call("setTransform", scale, 0, 0, -scale, shift, shift)
+
+	g.transform = NewTransform(scale, -scale, shift, shift)
 }
 
 func (c *GraphCanvas) Mount() {
@@ -273,25 +333,25 @@ func (g *GraphCanvas) Clear() {
 	g.ctx.Call("clearRect", -s/2, s/2, s, -s)
 }
 
-func (g *GraphCanvas) DrawNode(point Point) {
-
-	radius := 5
-
-	// g.ctx.Set("strokeStyle", "blue")
-	g.ctx.Set("lineWidth", 1)
-	g.ctx.Set("strokeStyle", "black")
-	g.ctx.Set("fillStyle", "grey")
+func (g *GraphCanvas) DrawNodeOutline(point Point) {
 
 	g.ctx.Call("beginPath")
-	g.ctx.Call("arc", point.X, point.Y, radius, 0, 2*math.Pi)
+	g.ctx.Call("arc", point.X, point.Y, VERTEX_RADIUS, 0, 2*math.Pi)
+	g.ctx.Call("stroke")
+}
+
+func (g *GraphCanvas) DrawNode(point Point) {
+
+	// g.ctx.Set("strokeStyle", "blue")
+
+	g.ctx.Call("beginPath")
+	g.ctx.Call("arc", point.X, point.Y, VERTEX_RADIUS, 0, 2*math.Pi)
 
 	g.ctx.Call("fill")
 	g.ctx.Call("stroke")
 }
 
 func (g *GraphCanvas) DrawEdge(from Point, to Point) {
-
-	g.ctx.Set("lineWidth", 1)
 
 	g.ctx.Call("beginPath")
 	g.ctx.Call("moveTo", from.X, from.Y)
@@ -305,10 +365,15 @@ func (g *GraphCanvas) Draw() {
 
 	// order := g.Graph.Order()
 	// radius := 30.0
+	g.ctx.Set("lineWidth", 1)
+
+	g.ctx.Set("strokeStyle", "black")
 
 	for _, edge := range g.Graph.AllEdges() {
 		g.DrawEdge(g.vertexPositions[edge.Source().Label()], g.vertexPositions[edge.Destination().Label()])
 	}
+
+	g.ctx.Set("fillStyle", "grey")
 
 	// draw the verticies after the edges to draw over them
 	for _, point := range g.vertexPositions {
@@ -339,6 +404,26 @@ func (g *GraphCanvas) Draw() {
 	fmt.Println("drew da graph")
 }
 
+func (g *GraphCanvas) HighlightActiveVertex(mousePos Point) *Action {
+
+	g.ctx.Set("lineWidth", 1)
+	g.ctx.Set("strokeStyle", "black")
+
+	for id, pos := range g.vertexPositions {
+		if mousePos.Distance(pos) <= VERTEX_RADIUS+1 {
+
+			g.highlitedVertex = id
+			fmt.Println("highlited vertex id:", id)
+			g.ctx.Set("strokeStyle", "red")
+		}
+
+		g.DrawNodeOutline(pos)
+		g.ctx.Set("strokeStyle", "black")
+	}
+
+	return nil
+}
+
 func (g *GraphCanvas) addNextVertex(connected bool) Action {
 	// order := uint(c.Graph.Order())
 
@@ -358,7 +443,7 @@ func (g *GraphCanvas) addNextVertex(connected bool) Action {
 
 	fmt.Println("added vertex")
 
-	return RecomputeVertexPositions{}
+	return &RecomputeVertexPositions{}
 }
 
 func (g *GraphCanvas) RecomputeVertexPositions() Action {
@@ -389,7 +474,9 @@ func (g *GraphCanvas) RecomputeVertexPositions() Action {
 		g.vertexPositions[labels[0]] = Point{X: 0, Y: 0}
 	}
 
-	return Draw{}
+	fmt.Println("recomputed vertex positions")
+
+	return &Draw{}
 
 }
 
@@ -400,16 +487,20 @@ func (g *GraphCanvas) handleActions() {
 
 			switch action := a.(type) {
 
-			case AddVertex:
+			case *AddVertex:
 				a = g.addNextVertex(action.connected)
 				continue
 
-			case RecomputeVertexPositions:
+			case *RecomputeVertexPositions:
 				a = g.RecomputeVertexPositions()
 				continue
 
-			case Draw:
+			case *Draw:
 				g.Draw()
+
+			case *MouseMove:
+				// fmt.Println(action.pos)
+				g.HighlightActiveVertex(action.pos)
 
 			default:
 				// fmt.Fprintln(os.Stderr, "Unhandled action of type: ", action)
