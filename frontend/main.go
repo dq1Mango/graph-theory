@@ -88,6 +88,14 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 					Text:    "remove vertex",
 					OnClick: func(e *vecty.Event) { graph.Actions <- &actions.RemoveVertex{Id: graph.SelectedVertex} },
 				},
+				&components.Button{
+					Text: "add edge",
+					OnClick: func(e *vecty.Event) {
+						graph.Actions <- &actions.AddEdge{Vertex1: graph.SelectedVertex, Vertex2: graph.ShiftSelected}
+					}},
+				&components.Button{Text: "remove edge", OnClick: func(*vecty.Event) {
+					graph.Actions <- &actions.RemoveEdge{Vertex1: graph.SelectedVertex, Vertex2: graph.ShiftSelected}
+				}},
 			),
 			&graph,
 		),
