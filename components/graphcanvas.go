@@ -346,6 +346,40 @@ func (g *GraphCanvas) RemoveVertex(id *uint) actions.Action {
 	}
 }
 
+func (g *GraphCanvas) AddEdge(vertex1, vertex2 *uint) actions.Action {
+
+	if vertex1 != nil {
+		if vertex2 != nil {
+
+			g.Graph.AddEdge(gograph.NewVertex(*vertex1), gograph.NewVertex(*vertex2))
+			return &actions.Draw{}
+
+		} else {
+			return &actions.PopupMessage{Message: "Secondary Vertex Not Selected"}
+		}
+	} else {
+		return &actions.PopupMessage{Message: "Primary Vertex Not Selected"}
+	}
+
+}
+
+func (g *GraphCanvas) RemoveEdge(vertex1, vertex2 *uint) actions.Action {
+
+	if vertex1 != nil {
+		if vertex2 != nil {
+			g.Graph.RemoveEdges(
+				gograph.NewEdge(gograph.NewVertex(*vertex1), gograph.NewVertex(*vertex2)),
+			)
+			return &actions.Draw{}
+		} else {
+			return &actions.PopupMessage{Message: "Secondary Vertex Not Selected"}
+		}
+	} else {
+		return &actions.PopupMessage{Message: "Primary Vertex Not Selected"}
+	}
+
+}
+
 func (g *GraphCanvas) RecomputeVertexPositions() actions.Action {
 	order := g.Graph.Order()
 	// verticies := g.Graph.GetAllVertices()
@@ -389,37 +423,43 @@ func (g *GraphCanvas) handleActions() {
 
 			case *actions.AddVertex:
 				a = g.addNextVertex(action.Connected)
-				continue
 
 			case *actions.RemoveVertex:
 				a = g.RemoveVertex(action.Id)
-				continue
+
+			case *actions.AddEdge:
+				a = g.AddEdge(action.Vertex1, action.Vertex2)
+
+			case *actions.RemoveEdge:
+				a = g.RemoveEdge(action.Vertex1, action.Vertex2)
 
 			case *actions.RecomputeVertexPositions:
 				a = g.RecomputeVertexPositions()
-				continue
 
 			case *actions.Draw:
 				g.Draw()
+				a = nil
 
 			case *actions.MouseMove:
 				// fmt.Println(action.pos)
 				g.HighlightActiveVertex(action.Pos)
+				a = nil
 
 			case *actions.MouseDown:
 				a = g.SelectVertex(action.Pos, action.Shift)
 				// fmt.Printf("heres the type: %T\n", a)
-				continue
 
 			case *actions.PopupMessage:
 				fmt.Println("Popup: ", action.Message)
+				InfoChan <- action.Message
+				a = nil
 
 			default:
 				// fmt.Fprintln(os.Stderr, "Unhandled action of type: ", action)
 				fmt.Println("Unhandled action of type: ", action)
+				a = nil
 			}
 
-			a = nil
 		}
 	}
 }

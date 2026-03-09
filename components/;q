@@ -1,0 +1,56 @@
+package components
+
+import (
+	"fmt"
+	"syscall/js"
+
+	"github.com/hexops/vecty"
+	"github.com/hexops/vecty/elem"
+)
+
+const DISPLAY_TIME = 5
+
+// u can only make one of these cuze of this little guy
+var InfoChan = make(chan string, 3)
+
+type Popup struct {
+	vecty.Core
+	ctx js.Value
+
+	Message  string
+	TimeLeft uint
+}
+
+func (p *Popup) ListenForUpdates() {
+	select {
+	case newMessage := <-InfoChan:
+		p.Message = newMessage
+		p.TimeLeft = DISPLAY_TIME
+
+	default:
+		fmt.Println("i dont think this should happen")
+	}
+}
+
+func (p *Popup) Render() vecty.ComponentOrHTML {
+	return elem.Div(
+		vecty.Text(p.Message,
+			vecty.Markup(vecty.Class("popup")),
+		),
+	)
+}
+
+func (p *Popup) Mount() {
+	p.ctx = js.Global().Call("")
+}
+
+func NewPopup() Popup {
+	popup := Popup{
+		Message:  "",
+		TimeLeft: 0,
+	}
+
+	go popup.ListenForUpdates()
+
+	return popup
+}

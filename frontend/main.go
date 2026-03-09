@@ -57,6 +57,9 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 
 	graph := components.InitGraphCanvas(100, "main-canvas")
 
+	popup := components.NewPopup()
+	// fmt.Println(popup)
+
 	return elem.Body(
 
 		elem.Div(
@@ -65,6 +68,8 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 				elem.Heading4(vecty.Text("This is a subtitle I'm sure I wont forget about")),
 			),
 		),
+
+		&popup,
 
 		elem.Div(
 			vecty.Markup(

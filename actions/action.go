@@ -14,6 +14,14 @@ type RemoveVertex struct {
 	Id *uint
 }
 
+type AddEdge struct {
+	Vertex1, Vertex2 *uint
+}
+
+type RemoveEdge struct {
+	Vertex1, Vertex2 *uint
+}
+
 type RecomputeVertexPositions struct{}
 
 type Draw struct{}

@@ -14,6 +14,10 @@ body {
   gap: 10px;
 }
 
+p {
+  min-height: 1em;
+}
+
 .content-box {
   display: flex;
   flex-direction: row;
@@ -56,4 +60,22 @@ body {
   aspect-ratio: 1 / 1;
   border: 2px solid #e0e0e0;
   /*look at this commment*/
+}
+
+@keyframes fadeOut {
+  from {
+    color: red;
+  }
+  to {
+    color: transparent;
+  }
+}
+
+.popup {
+  color: red;
+}
+
+.fadeout {
+  animation: fadeOut;
+  animation-duration: 5s;
 }
