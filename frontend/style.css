@@ -10,7 +10,7 @@ body {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: #f0f0f0;
+  /* background: #f0f0f0; */
   gap: 10px;
 }
 
@@ -24,6 +24,7 @@ p {
   justify-content: space-between;
   flex: 1;
   align-items: flex-start;
+  gap: 1em;
 }
 
 .button-box {
@@ -34,6 +35,12 @@ p {
   margin: 10px;
   gap: 10px;
   /* height: 100vh; */
+}
+
+.button-box button {
+  border-radius: 1em;
+  width: 100%;
+  padding: 1em;
 }
 
 .graph-list {

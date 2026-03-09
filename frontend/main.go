@@ -44,6 +44,7 @@ func main() {
 
 	vecty.SetTitle("Markdown Demo")
 	vecty.AddStylesheet("style.css")
+	vecty.AddStylesheet("mocha-theme.css")
 	vecty.RenderBody(&PageView{})
 }
 

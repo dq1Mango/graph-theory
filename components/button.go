@@ -13,12 +13,11 @@ type Button struct {
 }
 
 func (b *Button) Render() vecty.ComponentOrHTML {
-	return elem.Div(
-		elem.Button(
-			vecty.Text(b.Text),
-			vecty.Markup(
-				event.Click(b.OnClick),
-			),
+	return elem.Button(
+		vecty.Text(b.Text),
+		vecty.Markup(
+			event.Click(b.OnClick),
 		),
 	)
+
 }
