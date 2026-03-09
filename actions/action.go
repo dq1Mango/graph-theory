@@ -23,7 +23,8 @@ type MouseMove struct {
 }
 
 type MouseDown struct {
-	Pos model.Point
+	Pos   model.Point
+	Shift bool
 }
 
 type PopupMessage struct {

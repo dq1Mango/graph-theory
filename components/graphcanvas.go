@@ -31,6 +31,7 @@ type GraphCanvas struct {
 	NextLabel       uint
 	VertexPositions map[uint]model.Point
 	SelectedVertex  *uint
+	ShiftSelected   *uint
 
 	Transform model.Transform
 }
@@ -58,6 +59,7 @@ func (g *GraphCanvas) Render() vecty.ComponentOrHTML {
 				prop.ID(g.Id),
 
 				event.MouseMove(func(e *vecty.Event) {
+
 					// mouse position updates aren't super important,
 					// and with WASM we only have one os thread,
 					// so if we are busy in any way just dont add more fuel to the fire
@@ -75,9 +77,11 @@ func (g *GraphCanvas) Render() vecty.ComponentOrHTML {
 				}),
 
 				event.MouseDown(func(e *vecty.Event) {
+
+					shift := e.Get("shiftKey").Bool()
 					point := g.PointFromMouseEvent(e)
 
-					g.Actions <- &actions.MouseDown{Pos: point}
+					g.Actions <- &actions.MouseDown{Pos: point, Shift: shift}
 				}),
 
 				// these closures are rly nice i have to say
@@ -207,6 +211,11 @@ func (g *GraphCanvas) Draw() {
 		g.DrawNodeOutline(g.VertexPositions[*g.SelectedVertex])
 	}
 
+	if g.ShiftSelected != nil {
+		g.ctx.Set("strokeStyle", "blue")
+		g.DrawNodeOutline(g.VertexPositions[*g.ShiftSelected])
+	}
+
 	g.ctx.Call("save")
 	g.ctx.Set("fillStyle", "white")
 	g.ctx.Set("textBaseline", "middle")
@@ -246,29 +255,48 @@ func (g *GraphCanvas) HighlightActiveVertex(mousePos model.Point) actions.Action
 		g.ctx.Set("strokeStyle", "black")
 	}
 
-	g.HighlightSelectedVertex()
+	g.HighlightSelectedVerticies()
 
 	return nil
 }
 
-func (g *GraphCanvas) HighlightSelectedVertex() {
+func (g *GraphCanvas) HighlightSelectedVerticies() {
+
+	g.ctx.Set("lineWidth", 1)
+
 	if id := g.SelectedVertex; id != nil {
-		g.ctx.Set("lineWidth", 1)
 		g.ctx.Set("strokeStyle", "red")
+		g.DrawNodeOutline(g.VertexPositions[*id])
+	}
+
+	if id := g.ShiftSelected; id != nil {
+		g.ctx.Set("strokeStyle", "blue")
 		g.DrawNodeOutline(g.VertexPositions[*id])
 	}
 }
 
-func (g *GraphCanvas) SelectVertex(mousePos model.Point) actions.Action {
+func (g *GraphCanvas) SelectVertex(mousePos model.Point, shift bool) actions.Action {
 	fmt.Println("selecting vertex")
 
 	for id, pos := range g.VertexPositions {
 		if mousePos.Distance(pos) <= VERTEX_RADIUS+1 {
 
-			if g.SelectedVertex != nil && *g.SelectedVertex == id {
-				g.SelectedVertex = nil
+			if !shift {
+
+				if g.SelectedVertex != nil && *g.SelectedVertex == id {
+					g.SelectedVertex = nil
+				} else if g.ShiftSelected == nil || id != *g.ShiftSelected {
+					g.SelectedVertex = &id
+				}
+
 			} else {
-				g.SelectedVertex = &id
+
+				if g.ShiftSelected != nil && *g.ShiftSelected == id {
+					g.ShiftSelected = nil
+				} else if g.SelectedVertex == nil || id != *g.SelectedVertex {
+					g.ShiftSelected = &id
+				}
+
 			}
 
 			return &actions.Draw{}
@@ -310,6 +338,7 @@ func (g *GraphCanvas) RemoveVertex(id *uint) actions.Action {
 		g.Bijection.Remove(g.Bijection.Backwards(*id), *id)
 
 		g.SelectedVertex = nil
+		g.ShiftSelected = nil
 
 		return &actions.RecomputeVertexPositions{}
 	} else {
@@ -378,7 +407,7 @@ func (g *GraphCanvas) handleActions() {
 				g.HighlightActiveVertex(action.Pos)
 
 			case *actions.MouseDown:
-				a = g.SelectVertex(action.Pos)
+				a = g.SelectVertex(action.Pos, action.Shift)
 				// fmt.Printf("heres the type: %T\n", a)
 				continue
 
