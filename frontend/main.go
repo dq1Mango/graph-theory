@@ -13,7 +13,6 @@ import (
 	// "github.com/hexops/vecty/prop"
 
 	// "github.com/hexops/vecty/style"
-	"github.com/hmdsefi/gograph"
 	"github.com/yuin/goldmark"
 
 	"github.com/dq1Mango/graph-theory/actions"
@@ -21,31 +20,12 @@ import (
 	"github.com/dq1Mango/graph-theory/model"
 )
 
-// type AddEdge struct {
-// 	U
-// }
-
-func testGraphing() {
-	graph := gograph.New[int](gograph.Acyclic())
-
-	graph.AddEdge(gograph.NewVertex(1), gograph.NewVertex(2))
-	graph.AddEdge(gograph.NewVertex(2), gograph.NewVertex(3))
-	_, err := graph.AddEdge(gograph.NewVertex(3), gograph.NewVertex(1))
-
-	if err != nil {
-		fmt.Println("could not add edge")
-	} else {
-		fmt.Println("could add the edge")
-	}
-}
-
 func main() {
 	fmt.Println("Hello World!")
 	// testGraphing()
 
 	vecty.SetTitle("Markdown Demo")
 	vecty.AddStylesheet("style.css")
-	vecty.AddStylesheet("mocha-theme.css")
 	vecty.RenderBody(&PageView{})
 }
 
@@ -116,7 +96,18 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 }
 
 func (p *PageView) Mount() {
-	p.theme.SetTheme("mocha-theme")
+	p.theme.SetTheme("catppuccin")
+
+	// model.GreenFlag = true
+
+	go func() {
+		for {
+			select {
+			case newTheme := <-model.ThemChan:
+				p.theme.SetTheme(newTheme)
+			}
+		}
+	}()
 }
 
 // Markdown is a simple component which renders the Input markdown as sanitized

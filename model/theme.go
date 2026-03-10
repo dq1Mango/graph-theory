@@ -1,6 +1,16 @@
 package model
 
-import "syscall/js"
+import (
+	"fmt"
+	"syscall/js"
+)
+
+var (
+	// i sure do love these global variables
+	ThemChan chan string = make(chan string, 3)
+	// GreenFlag bool = false
+	// there are also technically race conditions with all of these but like pfffft
+)
 
 type Theme struct {
 	Path string
@@ -37,6 +47,12 @@ func (t *Theme) RemoveStylesheet(id string) {
 }
 
 func (t *Theme) SetTheme(path string) {
+
+	if path == t.Path {
+		fmt.Println("same theme; not changing...")
+		return
+	}
+
 	t.Path = path
 	t.RemoveStylesheet("theme-stylesheet")
 	t.AddStylesheet("theme-stylesheet", path+".css")

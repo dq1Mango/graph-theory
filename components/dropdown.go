@@ -1,6 +1,7 @@
 package components
 
 import (
+	"github.com/dq1Mango/graph-theory/model"
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
@@ -60,6 +61,8 @@ func (d *Dropdown) renderMenu() vecty.ComponentOrHTML {
 					d.selected = opt
 					d.open = false
 					vecty.Rerender(d)
+
+					model.ThemChan <- d.selected
 				}),
 			),
 			vecty.Text(opt),
