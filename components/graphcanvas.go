@@ -19,6 +19,8 @@ const (
 	CYCLE_RADIUS  = 30.0
 )
 
+// var model.CurrentPalette = model.CurrentPalette
+
 type GraphCanvas struct {
 	vecty.Core
 	ctx     js.Value
@@ -138,8 +140,8 @@ func (c *GraphCanvas) Mount() {
 	c.SetCanvasTransform()
 
 	// safe to draw here, DOM is ready
-	c.ctx.Set("fillStyle", "red")
-	c.ctx.Call("fillRect", 0, 0, 50, 25)
+	// c.ctx.Set("fillStyle", model.CurrentPalette.Red)
+	// c.ctx.Call("fillRect", 0, 0, 50, 25)
 
 	go func() {
 		c.handleActions()
@@ -188,7 +190,7 @@ func (g *GraphCanvas) Draw() {
 	// radius := 30.0
 	g.ctx.Set("lineWidth", 1)
 
-	g.ctx.Set("strokeStyle", "black")
+	g.ctx.Set("strokeStyle", model.CurrentPalette.Text)
 
 	for _, edge := range g.Graph.AllEdges() {
 		g.DrawEdge(
@@ -197,7 +199,7 @@ func (g *GraphCanvas) Draw() {
 		)
 	}
 
-	g.ctx.Set("fillStyle", "grey")
+	g.ctx.Set("fillStyle", model.CurrentPalette.Subtext0)
 
 	// draw the verticies after the edges to draw over them
 	for _, point := range g.VertexPositions {
@@ -207,17 +209,17 @@ func (g *GraphCanvas) Draw() {
 
 	// highlight the selected one
 	if g.SelectedVertex != nil {
-		g.ctx.Set("strokeStyle", "red")
+		g.ctx.Set("strokeStyle", model.CurrentPalette.Red)
 		g.DrawNodeOutline(g.VertexPositions[*g.SelectedVertex])
 	}
 
 	if g.ShiftSelected != nil {
-		g.ctx.Set("strokeStyle", "blue")
+		g.ctx.Set("strokeStyle", model.CurrentPalette.Blue)
 		g.DrawNodeOutline(g.VertexPositions[*g.ShiftSelected])
 	}
 
 	g.ctx.Call("save")
-	g.ctx.Set("fillStyle", "white")
+	g.ctx.Set("fillStyle", model.CurrentPalette.Text)
 	g.ctx.Set("textBaseline", "middle")
 	g.ctx.Set("textAlign", "center")
 
@@ -242,17 +244,17 @@ func (g *GraphCanvas) Draw() {
 func (g *GraphCanvas) HighlightActiveVertex(mousePos model.Point) actions.Action {
 
 	g.ctx.Set("lineWidth", 1)
-	g.ctx.Set("strokeStyle", "black")
+	g.ctx.Set("strokeStyle", model.CurrentPalette.Text)
 
 	for _, pos := range g.VertexPositions {
 
 		if mousePos.Distance(pos) <= VERTEX_RADIUS+1 {
 
-			g.ctx.Set("strokeStyle", "purple")
+			g.ctx.Set("strokeStyle", model.CurrentPalette.Mauve)
 		}
 
 		g.DrawNodeOutline(pos)
-		g.ctx.Set("strokeStyle", "black")
+		g.ctx.Set("strokeStyle", model.CurrentPalette.Text)
 	}
 
 	g.HighlightSelectedVerticies()
@@ -265,12 +267,12 @@ func (g *GraphCanvas) HighlightSelectedVerticies() {
 	g.ctx.Set("lineWidth", 1)
 
 	if id := g.SelectedVertex; id != nil {
-		g.ctx.Set("strokeStyle", "red")
+		g.ctx.Set("strokeStyle", model.CurrentPalette.Red)
 		g.DrawNodeOutline(g.VertexPositions[*id])
 	}
 
 	if id := g.ShiftSelected; id != nil {
-		g.ctx.Set("strokeStyle", "blue")
+		g.ctx.Set("strokeStyle", model.CurrentPalette.Blue)
 		g.DrawNodeOutline(g.VertexPositions[*id])
 	}
 }

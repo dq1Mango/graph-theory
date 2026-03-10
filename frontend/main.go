@@ -26,6 +26,7 @@ func main() {
 
 	vecty.SetTitle("Markdown Demo")
 	vecty.AddStylesheet("style.css")
+	vecty.AddStylesheet("colors.css")
 	vecty.RenderBody(&PageView{})
 }
 

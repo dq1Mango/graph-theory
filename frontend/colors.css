@@ -1,0 +1,126 @@
+body {
+  background-color: var(--base);
+  color: var(--text);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--lavender);
+}
+
+p {
+  color: var(--text);
+}
+
+a {
+  color: var(--blue);
+}
+
+a:hover {
+  color: var(--sky);
+}
+
+a:visited {
+  color: var(--mauve);
+}
+
+code,
+pre {
+  background-color: var(--surface0);
+  color: var(--green);
+}
+
+input,
+textarea,
+select {
+  background-color: var(--surface0);
+  color: var(--text);
+  border-color: var(--surface2);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--blue);
+  outline-color: var(--blue);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--overlay0);
+}
+
+button {
+  background-color: var(--surface1);
+  color: var(--text);
+  border-color: var(--surface2);
+}
+
+button:hover {
+  background-color: var(--surface2);
+}
+
+button:active {
+  background-color: var(--overlay0);
+}
+
+table {
+  border-color: var(--surface2);
+}
+
+th {
+  background-color: var(--surface0);
+  color: var(--lavender);
+}
+
+td {
+  color: var(--text);
+  border-color: var(--surface1);
+}
+
+tr:nth-child(even) {
+  background-color: var(--mantle);
+}
+
+hr {
+  border-color: var(--surface1);
+}
+
+blockquote {
+  border-color: var(--mauve);
+  color: var(--subtext1);
+}
+
+mark {
+  background-color: var(--yellow);
+  color: var(--base);
+}
+
+::selection {
+  background-color: var(--surface2);
+  color: var(--text);
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--mantle);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--surface2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--overlay0);
+}
+
+.canvas-wrapper {
+  background: var(--surface2);
+}
+
+.canvas {
+  border-color: var(--overlay1);
+}
