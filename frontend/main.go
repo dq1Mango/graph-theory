@@ -18,6 +18,7 @@ import (
 
 	"github.com/dq1Mango/graph-theory/actions"
 	"github.com/dq1Mango/graph-theory/components"
+	"github.com/dq1Mango/graph-theory/model"
 )
 
 // type AddEdge struct {
@@ -51,6 +52,8 @@ func main() {
 // PageView is our main page component.
 type PageView struct {
 	vecty.Core
+
+	theme model.Theme
 }
 
 // Render implements the vecty.Component interface.
@@ -110,6 +113,10 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 			&graph,
 		),
 	)
+}
+
+func (p *PageView) Mount() {
+	p.theme.SetTheme("mocha-theme")
 }
 
 // Markdown is a simple component which renders the Input markdown as sanitized
