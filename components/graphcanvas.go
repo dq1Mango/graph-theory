@@ -28,6 +28,7 @@ type GraphCanvas struct {
 	Size    uint
 	Actions chan any
 	Graph   gograph.Graph[uint]
+	Stats   *GraphStats
 
 	Bijection       model.Bijection
 	NextLabel       uint
@@ -50,6 +51,10 @@ func InitGraphCanvas(size uint, id string) GraphCanvas {
 		VertexPositions: make(map[uint]model.Point)}
 
 	return graph
+}
+
+func (g *GraphCanvas) AttachStats(stats *GraphStats) {
+	g.Stats = stats
 }
 
 func (g *GraphCanvas) Render() vecty.ComponentOrHTML {
@@ -190,7 +195,7 @@ func (g *GraphCanvas) Draw() {
 	// radius := 30.0
 	g.ctx.Set("lineWidth", 1)
 
-	g.ctx.Set("strokeStyle", model.CurrentPalette.Text)
+	g.ctx.Set("strokeStyle", model.CurrentPalette.Base)
 
 	for _, edge := range g.Graph.AllEdges() {
 		g.DrawEdge(
@@ -199,7 +204,7 @@ func (g *GraphCanvas) Draw() {
 		)
 	}
 
-	g.ctx.Set("fillStyle", model.CurrentPalette.Subtext0)
+	g.ctx.Set("fillStyle", model.CurrentPalette.Surface1)
 
 	// draw the verticies after the edges to draw over them
 	for _, point := range g.VertexPositions {
@@ -244,7 +249,7 @@ func (g *GraphCanvas) Draw() {
 func (g *GraphCanvas) HighlightActiveVertex(mousePos model.Point) actions.Action {
 
 	g.ctx.Set("lineWidth", 1)
-	g.ctx.Set("strokeStyle", model.CurrentPalette.Text)
+	g.ctx.Set("strokeStyle", model.CurrentPalette.Base)
 
 	for _, pos := range g.VertexPositions {
 
@@ -254,7 +259,7 @@ func (g *GraphCanvas) HighlightActiveVertex(mousePos model.Point) actions.Action
 		}
 
 		g.DrawNodeOutline(pos)
-		g.ctx.Set("strokeStyle", model.CurrentPalette.Text)
+		g.ctx.Set("strokeStyle", model.CurrentPalette.Base)
 	}
 
 	g.HighlightSelectedVerticies()
@@ -416,6 +421,10 @@ func (g *GraphCanvas) RecomputeVertexPositions() actions.Action {
 
 }
 
+func (g *GraphCanvas) UpdateStats() {
+	vecty.Rerender(g.Stats)
+}
+
 func (g *GraphCanvas) handleActions() {
 	for {
 		a := <-g.Actions
@@ -440,6 +449,7 @@ func (g *GraphCanvas) handleActions() {
 
 			case *actions.Draw:
 				g.Draw()
+				g.UpdateStats()
 				a = nil
 
 			case *actions.MouseMove:
@@ -458,7 +468,7 @@ func (g *GraphCanvas) handleActions() {
 
 			default:
 				// fmt.Fprintln(os.Stderr, "Unhandled action of type: ", action)
-				fmt.Println("Unhandled action of type: ", action)
+				fmt.Printf("Unhandled action of type: %T\n", action)
 				a = nil
 			}
 

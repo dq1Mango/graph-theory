@@ -96,6 +96,7 @@ p {
 
 .dropdown-item:last-child {
   border-radius: 0 0 1em 1em;
+  /* border-bottom-width: 1px; */
 }
 
 /* .dropdown-item:only-child { */
@@ -106,7 +107,6 @@ p {
 .dropdown-button {
   padding: 16px;
   /* font-size: 12px; */
-  border: none;
   width: 100%;
 
   border-radius: 1em;
@@ -129,7 +129,8 @@ p {
   padding: 1em 0.5em;
   text-align: left;
   width: 100%;
-  border: none;
+  border-top: none;
+  border-bottom: none;
 }
 
 /* Show the dropdown menu on hover */
@@ -139,9 +140,6 @@ p {
 
 .dropdown:hover .dropdown-button {
   border-radius: 1em 1em 0em 0em;
-}
-
-/* Change the background color of the dropdown button when the dropdown content is shown */
-.dropdown:hover .dropdown-button {
-  /* background-color: #3e8e41; */
+  background-color: var(--surface1);
+  /* border-bottom: none; */
 }

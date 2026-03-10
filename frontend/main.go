@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 
 	// "os"
@@ -13,7 +12,6 @@ import (
 	// "github.com/hexops/vecty/prop"
 
 	// "github.com/hexops/vecty/style"
-	"github.com/yuin/goldmark"
 
 	"github.com/dq1Mango/graph-theory/actions"
 	"github.com/dq1Mango/graph-theory/components"
@@ -27,7 +25,15 @@ func main() {
 	vecty.SetTitle("Markdown Demo")
 	vecty.AddStylesheet("style.css")
 	vecty.AddStylesheet("colors.css")
-	vecty.RenderBody(&PageView{})
+	vecty.RenderBody(NewPageView())
+}
+
+func NewPageView() *PageView {
+	graph := components.InitGraphCanvas(100, "main-canvas")
+
+	return &PageView{
+		graph: &graph,
+	}
 }
 
 // PageView is our main page component.
@@ -35,12 +41,17 @@ type PageView struct {
 	vecty.Core
 
 	theme model.Theme
+	graph *components.GraphCanvas
 }
 
 // Render implements the vecty.Component interface.
 func (p *PageView) Render() vecty.ComponentOrHTML {
 
-	graph := components.InitGraphCanvas(100, "main-canvas")
+	graph := p.graph
+
+	graphStats := components.GraphStats{Graph: graph.Graph, Expanded: false}
+
+	p.graph.AttachStats(&graphStats)
 
 	popup := components.NewPopup()
 
@@ -71,27 +82,30 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 				),
 
 				&components.Button{
-					Text:    "testing",
-					OnClick: func(e *vecty.Event) { fmt.Println("Clicked!") },
+					Text: "add node",
+					OnClick: func(e *vecty.Event) {
+						graph.Actions <- &actions.AddVertex{Connected: true}
+					},
 				},
 				&components.Button{
-					Text:    "add node",
-					OnClick: func(e *vecty.Event) { graph.Actions <- &actions.AddVertex{Connected: true} },
-				},
-				&components.Button{
-					Text:    "remove vertex",
-					OnClick: func(e *vecty.Event) { graph.Actions <- &actions.RemoveVertex{Id: graph.SelectedVertex} },
+					Text: "remove vertex",
+					OnClick: func(e *vecty.Event) {
+						graph.Actions <- &actions.RemoveVertex{Id: graph.SelectedVertex}
+					},
 				},
 				&components.Button{
 					Text: "add edge",
 					OnClick: func(e *vecty.Event) {
 						graph.Actions <- &actions.AddEdge{Vertex1: graph.SelectedVertex, Vertex2: graph.ShiftSelected}
 					}},
-				&components.Button{Text: "remove edge", OnClick: func(*vecty.Event) {
-					graph.Actions <- &actions.RemoveEdge{Vertex1: graph.SelectedVertex, Vertex2: graph.ShiftSelected}
-				}},
+				&components.Button{
+					Text: "remove edge",
+					OnClick: func(*vecty.Event) {
+						graph.Actions <- &actions.RemoveEdge{Vertex1: graph.SelectedVertex, Vertex2: graph.ShiftSelected}
+					}},
 			),
-			&graph,
+			graph,
+			&graphStats,
 		),
 	)
 }
@@ -106,33 +120,8 @@ func (p *PageView) Mount() {
 			select {
 			case newTheme := <-model.ThemChan:
 				p.theme.SetTheme(newTheme)
+				p.graph.Draw()
 			}
 		}
 	}()
-}
-
-// Markdown is a simple component which renders the Input markdown as sanitized
-// HTML into a div.
-type Markdown struct {
-	vecty.Core
-	Input string `vecty:"prop"`
-}
-
-// Render implements the vecty.Component interface.
-func (m *Markdown) Render() vecty.ComponentOrHTML {
-	// Render the markdown input into HTML using Goldmark.
-	var buf bytes.Buffer
-	if err := goldmark.Convert([]byte(m.Input), &buf); err != nil {
-		panic(err)
-	}
-	// The goldmark README says:
-	// "By default, goldmark does not render raw HTML or potentially dangerous links. "
-	// So, it should be ok without sanitizing.
-
-	// Return the HTML.
-	return elem.Div(
-		vecty.Markup(
-			vecty.UnsafeHTML(buf.String()),
-		),
-	)
 }
