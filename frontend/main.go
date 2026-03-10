@@ -49,9 +49,10 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 
 	graph := p.graph
 
-	graphStats := components.GraphStats{Graph: graph.Graph, Expanded: false}
+	graphStats := components.NewGraphStats(graph)
 
-	p.graph.AttachStats(&graphStats)
+	fmt.Printf("did ti work: %T\n", graph.Stats)
+	fmt.Println(graph.Stats != nil)
 
 	popup := components.NewPopup()
 
@@ -82,9 +83,9 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 				),
 
 				&components.Button{
-					Text: "add node",
+					Text: "add vertex",
 					OnClick: func(e *vecty.Event) {
-						graph.Actions <- &actions.AddVertex{Connected: true}
+						graph.Actions <- &actions.AddVertex{Connected: false}
 					},
 				},
 				&components.Button{
@@ -105,7 +106,7 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 					}},
 			),
 			graph,
-			&graphStats,
+			graphStats,
 		),
 	)
 }
@@ -120,7 +121,7 @@ func (p *PageView) Mount() {
 			select {
 			case newTheme := <-model.ThemChan:
 				p.theme.SetTheme(newTheme)
-				p.graph.Draw()
+				p.graph.Actions <- &actions.Draw{}
 			}
 		}
 	}()

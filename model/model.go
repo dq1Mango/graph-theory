@@ -85,6 +85,7 @@ func (p *PosIntBijection) Forwards(from uint) uint {
 // Backwards implements Bijection.
 func (p *PosIntBijection) Backwards(to uint) uint {
 
+	// erm, did you know binary search run in O(ln(n)) 🤓
 	for index, value := range p.forwards {
 		if value == to {
 			return uint(index)

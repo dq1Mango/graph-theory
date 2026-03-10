@@ -53,10 +53,6 @@ func InitGraphCanvas(size uint, id string) GraphCanvas {
 	return graph
 }
 
-func (g *GraphCanvas) AttachStats(stats *GraphStats) {
-	g.Stats = stats
-}
-
 func (g *GraphCanvas) Render() vecty.ComponentOrHTML {
 	return elem.Div(
 		vecty.Markup(vecty.Class("canvas-wrapper")),
@@ -327,10 +323,11 @@ func (g *GraphCanvas) addNextVertex(connected bool) actions.Action {
 		for _, v := range g.Graph.GetAllVertices() {
 			g.Graph.AddEdge(vertex, v)
 		}
+	} else if g.SelectedVertex != nil {
+		g.Graph.AddEdge(vertex, g.Graph.GetVertexByID(*g.SelectedVertex))
 	}
-	g.Graph.AddVertex(vertex)
 
-	// c.Actions <- Draw{}
+	g.Graph.AddVertex(vertex)
 
 	fmt.Println("added vertex")
 

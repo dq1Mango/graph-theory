@@ -143,3 +143,12 @@ p {
   background-color: var(--surface1);
   /* border-bottom: none; */
 }
+
+.stats {
+  width: 10em;
+}
+
+.stats-title {
+  text-align: center;
+  font-weight: bold;
+}
