@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 
+	path "github.com/dq1Mango/gograph/path"
 	"github.com/dq1Mango/graph-theory/model"
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
@@ -122,7 +123,7 @@ func (g *GraphStats) VertexStats(id uint) *vecty.HTML {
 
 	stats := []string{
 		fmt.Sprintf("Degree: %d", vertex.OutDegree()),
-		fmt.Sprintf("Ecentricity: %v", vertex.Metadata()),
+		fmt.Sprintf("Ecentricity: %v", path.Eccentricity(graph, vertex)),
 	}
 
 	paragraphs := make([]vecty.MarkupOrChild, 0, 2)
