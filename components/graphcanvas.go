@@ -5,13 +5,13 @@ import (
 	"math"
 	"syscall/js"
 
+	"github.com/dq1Mango/gograph"
 	"github.com/dq1Mango/graph-theory/actions"
 	"github.com/dq1Mango/graph-theory/model"
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
 	"github.com/hexops/vecty/prop"
-	"github.com/hmdsefi/gograph"
 )
 
 const (

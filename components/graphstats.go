@@ -121,7 +121,7 @@ func (g *GraphStats) VertexStats(id uint) *vecty.HTML {
 	vertex := graph.GetVertexByID(id)
 
 	stats := []string{
-		fmt.Sprintf("Degree: %d", vertex.Degree()),
+		fmt.Sprintf("Degree: %d", vertex.OutDegree()),
 		fmt.Sprintf("Ecentricity: %v", vertex.Metadata()),
 	}
 

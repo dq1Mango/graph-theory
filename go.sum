@@ -1,6 +1,5 @@
+github.com/dq1Mango/gograph v0.0.0-20260311161907-90b1cf517736 h1:0vx4AJ8S4SLOrkuL5hNrJ3GaMtlu/qIx5ZDYVNKeKnQ=
+github.com/dq1Mango/gograph v0.0.0-20260311161907-90b1cf517736/go.mod h1:aM2kpYxquKzDCtF+K5LmRoY9oDBR0saNo7Bq++JYNYM=
 github.com/hexops/vecty v0.6.0 h1:iiHfDOLEJufGy/hfPGzOTPkZe6rCszElYmUSzRQqK1w=
 github.com/hexops/vecty v0.6.0/go.mod h1:hVOPHAhrkXTf/9fl31Bpn2QvkW2ZOUZ0I3b3cohwCpI=
-github.com/hmdsefi/gograph v0.7.0 h1:4B75p7Nl1eVZe5OsfYqCAGLCQUMLwmU2OXtsfzNn8Qc=
-github.com/hmdsefi/gograph v0.7.0/go.mod h1:ZrmXi8bO0eWG86DQ4F0kinG1+2zSgZVKIbhadwSCEag=
-github.com/yuin/goldmark v1.7.16 h1:n+CJdUxaFMiDUNnWC3dMWCIQJSkxH4uz3ZwQBkAlVNE=
 github.com/yuin/goldmark v1.7.16/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
