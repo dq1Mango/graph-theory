@@ -152,3 +152,25 @@ p {
   text-align: center;
   font-weight: bold;
 }
+
+.choice-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: space-between;
+  margin: 0.5em 2em 0.5em 2em;
+}
+
+.choice {
+  width: 100%;
+  border-radius: 1em;
+  border-left: none;
+  border-right: none;
+}
+
+.choice:first-child {
+  border-radius: 1em 0em 0em 1em;
+}
+
+.choice:last-child {
+  border-radius: 0em 1em 1em 0em;
+}

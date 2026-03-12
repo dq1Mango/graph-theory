@@ -19,6 +19,11 @@ const (
 	CYCLE_RADIUS  = 30.0
 )
 
+const (
+	FreeForm uint = iota
+	Ring
+)
+
 // var model.CurrentPalette = model.CurrentPalette
 
 type GraphCanvas struct {
@@ -29,6 +34,7 @@ type GraphCanvas struct {
 	Actions chan any
 	Graph   gograph.Graph[uint]
 	Stats   *GraphStats
+	Mode    *ChoiceBar
 
 	Bijection       model.Bijection
 	NextLabel       uint
@@ -41,11 +47,26 @@ type GraphCanvas struct {
 
 func InitGraphCanvas(size uint, id string) GraphCanvas {
 
+	actionChan := make(chan any, 10)
+
+	// little function to convert the mode selector updates to draw updates
+	modeUpdates := make(chan string)
+	go func() {
+		for {
+			// we dont rly care what the mode changes to or from
+			<-modeUpdates
+			// fmt.Println("sent draw upadte")
+			actionChan <- &actions.RecomputeVertexPositions{}
+		}
+	}()
+
 	graph := GraphCanvas{
-		Size:            size,
-		Id:              id,
-		Graph:           gograph.New[uint](),
-		Actions:         make(chan any, 10),
+		Size:    size,
+		Id:      id,
+		Graph:   gograph.New[uint](),
+		Actions: actionChan,
+		Mode:    NewChoiceBar(modeUpdates, "freeform", "ring"),
+
 		Bijection:       model.NewBijection(),
 		NextLabel:       0,
 		VertexPositions: make(map[uint]model.Point)}
@@ -55,39 +76,44 @@ func InitGraphCanvas(size uint, id string) GraphCanvas {
 
 func (g *GraphCanvas) Render() vecty.ComponentOrHTML {
 	return elem.Div(
-		vecty.Markup(vecty.Class("canvas-wrapper")),
-		elem.Canvas(
-			vecty.Markup(
-				vecty.Class("canvas"),
-				prop.ID(g.Id),
 
-				event.MouseMove(func(e *vecty.Event) {
+		g.Mode,
+		elem.Div(
 
-					// mouse position updates aren't super important,
-					// and with WASM we only have one os thread,
-					// so if we are busy in any way just dont add more fuel to the fire
-					if len(g.Actions) < 2 {
-						point := g.PointFromMouseEvent(e)
-						// non blocking send just in case
-						select {
-						case g.Actions <- &actions.MouseMove{
-							Pos: point,
-						}:
-						default:
-							fmt.Println("action buffer busy...")
+			vecty.Markup(vecty.Class("canvas-wrapper")),
+			elem.Canvas(
+				vecty.Markup(
+					vecty.Class("canvas"),
+					prop.ID(g.Id),
+
+					event.MouseMove(func(e *vecty.Event) {
+
+						// mouse position updates aren't super important,
+						// and with WASM we only have one os thread,
+						// so if we are busy in any way just dont add more fuel to the fire
+						if len(g.Actions) < 2 {
+							point := g.PointFromMouseEvent(e)
+							// non blocking send just in case
+							select {
+							case g.Actions <- &actions.MouseMove{
+								Pos: point,
+							}:
+							default:
+								fmt.Println("action buffer busy...")
+							}
 						}
-					}
-				}),
+					}),
 
-				event.MouseDown(func(e *vecty.Event) {
+					event.MouseDown(func(e *vecty.Event) {
 
-					shift := e.Get("shiftKey").Bool()
-					point := g.PointFromMouseEvent(e)
+						shift := e.Get("shiftKey").Bool()
+						point := g.PointFromMouseEvent(e)
 
-					g.Actions <- &actions.MouseDown{Pos: point, Shift: shift}
-				}),
+						g.Actions <- &actions.MouseDown{Pos: point, Shift: shift}
+					}),
 
-				// these closures are rly nice i have to say
+					// these closures are rly nice i have to say
+				),
 			),
 		),
 	)
@@ -278,8 +304,8 @@ func (g *GraphCanvas) HighlightSelectedVerticies() {
 	}
 }
 
-func (g *GraphCanvas) SelectVertex(mousePos model.Point, shift bool) actions.Action {
-	fmt.Println("selecting vertex")
+func (g *GraphCanvas) HandleMouseClick(mousePos model.Point, shift bool) actions.Action {
+	fmt.Println("got a click...")
 
 	for id, pos := range g.VertexPositions {
 		if mousePos.Distance(pos) <= VERTEX_RADIUS+1 {
@@ -306,15 +332,27 @@ func (g *GraphCanvas) SelectVertex(mousePos model.Point, shift bool) actions.Act
 		}
 	}
 
-	g.SelectedVertex = nil
+	nextId := g.NextLabel
+	result := g.addNextVertex(&mousePos, false)
+	g.SelectedVertex = &nextId
 
-	return &actions.Draw{}
+	return result
 }
 
-func (g *GraphCanvas) addNextVertex(connected bool) actions.Action {
+func (g *GraphCanvas) addNextVertex(point *model.Point, connected bool) actions.Action {
 	// order := uint(c.Graph.Order())
 
 	vertex := gograph.NewVertex(g.NextLabel)
+
+	if g.Mode.Selected == FreeForm {
+		if point != nil {
+			g.VertexPositions[vertex.Label()] = *point
+		} else {
+			fmt.Println("Error: freeform add without pos")
+			return nil
+		}
+	}
+
 	// g.bijection = append(g.bijection, g.nextLabel)
 	g.Bijection.Add(0, g.NextLabel)
 	g.NextLabel++
@@ -385,6 +423,11 @@ func (g *GraphCanvas) RemoveEdge(vertex1, vertex2 *uint) actions.Action {
 }
 
 func (g *GraphCanvas) RecomputeVertexPositions() actions.Action {
+
+	if g.Mode.Selected == FreeForm {
+		return &actions.Draw{}
+	}
+
 	order := g.Graph.Order()
 	// verticies := g.Graph.GetAllVertices()
 	labels := g.Bijection.Labels()
@@ -430,7 +473,7 @@ func (g *GraphCanvas) handleActions() {
 			switch action := a.(type) {
 
 			case *actions.AddVertex:
-				a = g.addNextVertex(action.Connected)
+				a = g.addNextVertex(nil, action.Connected)
 
 			case *actions.RemoveVertex:
 				a = g.RemoveVertex(action.Id)
@@ -455,7 +498,7 @@ func (g *GraphCanvas) handleActions() {
 				a = nil
 
 			case *actions.MouseDown:
-				a = g.SelectVertex(action.Pos, action.Shift)
+				a = g.HandleMouseClick(action.Pos, action.Shift)
 				// fmt.Printf("heres the type: %T\n", a)
 
 			case *actions.PopupMessage:

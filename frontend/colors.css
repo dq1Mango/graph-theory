@@ -62,6 +62,8 @@ button {
 
 button:hover {
   background-color: var(--surface2);
+  color: var(--lavender);
+  /* font-weight: bold; */
 }
 
 button:active {
@@ -123,4 +125,9 @@ mark {
 
 .canvas {
   border-color: var(--overlay1);
+}
+
+.selected-choice {
+  background-color: var(--surface2);
+  color: var(--lavender);
 }

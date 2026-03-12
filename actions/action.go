@@ -38,3 +38,7 @@ type MouseDown struct {
 type PopupMessage struct {
 	Message string
 }
+
+// type SetMode struct {
+// 	Mode string
+// }
