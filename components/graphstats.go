@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 
+	"github.com/dq1Mango/gograph"
 	path "github.com/dq1Mango/gograph/path"
 	"github.com/dq1Mango/graph-theory/model"
 	"github.com/hexops/vecty"
@@ -72,7 +73,9 @@ func (g *GraphStats) SimpleStats() []vecty.MarkupOrChild {
 func (g *GraphStats) PrimaryVertexStats() *vecty.HTML {
 	graph := g.Graph
 
-	if graph.SelectedVertex != nil {
+	// sure thing guys lets just call everything a 'graph'
+	if graph.SelectedVertex != nil &&
+		graph.Graph.ContainsVertex(gograph.NewVertex(*graph.SelectedVertex)) {
 		return elem.Div(
 			elem.Break(),
 
@@ -96,7 +99,8 @@ func (g *GraphStats) PrimaryVertexStats() *vecty.HTML {
 func (g *GraphStats) SecondaryVertexStats() *vecty.HTML {
 	graph := g.Graph
 
-	if graph.ShiftSelected != nil {
+	if graph.ShiftSelected != nil &&
+		graph.Graph.ContainsVertex(gograph.NewVertex(*graph.ShiftSelected)) {
 		return elem.Div(
 			elem.Break(),
 

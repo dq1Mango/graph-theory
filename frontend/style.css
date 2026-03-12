@@ -156,7 +156,7 @@ p {
 .choice-bar {
   display: flex;
   flex-direction: row;
-  align-items: space-between;
+  justify-content: space-between;
   margin: 0.5em 2em 0.5em 2em;
 }
 

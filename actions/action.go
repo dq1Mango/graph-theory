@@ -42,3 +42,9 @@ type PopupMessage struct {
 // type SetMode struct {
 // 	Mode string
 // }
+
+type PruferFromGraph struct{}
+
+type GraphFromPrufer struct {
+	Prufer []uint
+}

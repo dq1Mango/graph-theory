@@ -6,6 +6,7 @@ import (
 	"syscall/js"
 
 	"github.com/dq1Mango/gograph"
+	"github.com/dq1Mango/gograph/util"
 	"github.com/dq1Mango/graph-theory/actions"
 	"github.com/dq1Mango/graph-theory/model"
 	"github.com/hexops/vecty"
@@ -19,6 +20,7 @@ const (
 	CYCLE_RADIUS  = 30.0
 )
 
+// Display modes
 const (
 	FreeForm uint = iota
 	Ring
@@ -461,6 +463,23 @@ func (g *GraphCanvas) RecomputeVertexPositions() actions.Action {
 
 }
 
+func (g *GraphCanvas) PruferFromGraph() actions.Action {
+
+	g.SelectedVertex = nil
+	g.ShiftSelected = nil
+
+	code, err := util.PruferCodeFromGraph(g.Graph)
+
+	if err != nil {
+		fmt.Println(err)
+		return &actions.RecomputeVertexPositions{}
+	}
+
+	fmt.Println(code)
+
+	return &actions.RecomputeVertexPositions{}
+}
+
 func (g *GraphCanvas) UpdateStats() {
 	vecty.Rerender(g.Stats)
 }
@@ -499,6 +518,9 @@ func (g *GraphCanvas) handleActions() {
 
 			case *actions.MouseDown:
 				a = g.HandleMouseClick(action.Pos, action.Shift)
+
+			case *actions.PruferFromGraph:
+				a = g.PruferFromGraph()
 				// fmt.Printf("heres the type: %T\n", a)
 
 			case *actions.PopupMessage:

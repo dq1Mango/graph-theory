@@ -22,7 +22,7 @@ func main() {
 	fmt.Println("Hello World!")
 	// testGraphing()
 
-	vecty.SetTitle("Markdown Demo")
+	vecty.SetTitle("Graph Theory")
 	vecty.AddStylesheet("style.css")
 	vecty.AddStylesheet("colors.css")
 	vecty.RenderBody(NewPageView())
@@ -98,12 +98,20 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 					Text: "add edge",
 					OnClick: func(e *vecty.Event) {
 						graph.Actions <- &actions.AddEdge{Vertex1: graph.SelectedVertex, Vertex2: graph.ShiftSelected}
-					}},
+					},
+				},
 				&components.Button{
 					Text: "remove edge",
 					OnClick: func(*vecty.Event) {
 						graph.Actions <- &actions.RemoveEdge{Vertex1: graph.SelectedVertex, Vertex2: graph.ShiftSelected}
-					}},
+					},
+				},
+				&components.Button{
+					Text: "generate prufer code",
+					OnClick: func(*vecty.Event) {
+						graph.Actions <- &actions.PruferFromGraph{}
+					},
+				},
 			),
 			graph,
 			graphStats,
