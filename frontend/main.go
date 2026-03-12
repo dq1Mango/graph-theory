@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	// "os"
 
@@ -51,10 +53,32 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 
 	graphStats := components.NewGraphStats(graph)
 
-	fmt.Printf("did ti work: %T\n", graph.Stats)
-	fmt.Println(graph.Stats != nil)
+	pruferCodeGeneration := make(chan string, 2)
 
 	popup := components.NewPopup()
+
+	go func() {
+		for {
+			sequence := <-pruferCodeGeneration
+
+			var paresed []uint
+
+			for segment := range strings.SplitSeq(sequence, ",") {
+				segment = strings.TrimSpace(segment)
+
+				num, err := strconv.Atoi(segment)
+
+				if err != nil {
+					components.InfoChan <- "Invalid Prufer Code"
+					continue
+				}
+
+				paresed = append(paresed, uint(num))
+			}
+
+			graph.Actions <- actions.GraphFromPrufer{Prufer: paresed}
+		}
+	}()
 
 	themeDropDown := components.NewDropdown("theme", "dark", "catppuccin")
 	// fmt.Println(popup)
@@ -112,6 +136,10 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 						graph.Actions <- &actions.PruferFromGraph{}
 					},
 				},
+				components.NewEditableButton(
+					"construct graph from prufer code",
+					pruferCodeGeneration,
+				),
 			),
 			graph,
 			graphStats,
