@@ -83,12 +83,13 @@ p {
 }
 
 .popup {
-  color: red;
+  color: transparent;
 }
 
 .fadeout {
   animation: fadeOut;
   animation-duration: 5s;
+  color: red;
 }
 
 .dropdown {

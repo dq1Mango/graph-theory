@@ -1,7 +1,6 @@
 package components
 
 import (
-	// "fmt"
 	"syscall/js"
 	"time"
 
@@ -18,12 +17,13 @@ var InfoChan = make(chan string, 3)
 
 type Popup struct {
 	vecty.Core
-	ctx js.Value
+	element js.Value
 
-	Message  string
-	TimeLeft uint
+	Message       string
+	AnimationTime uint
 
 	animating bool
+	interrupt chan struct{}
 }
 
 // func (p *Popup) Clear() {
@@ -32,16 +32,26 @@ type Popup struct {
 // }
 
 func (p *Popup) FadeOut() {
+
 	p.animating = true
-	vecty.Rerender(p)
+	for p.animating {
 
-	time.Sleep(4 * time.Second)
+		vecty.Rerender(p)
+		select {
 
-	p.animating = false
-	p.Message = ""
-	vecty.Rerender(p)
+		case <-time.After(5 * time.Second):
+			p.animating = false
+			p.Message = ""
+			vecty.Rerender(p)
 
-	// p.Clear()
+		case <-p.interrupt:
+
+			p.element.Get("classList").Call("remove", "fadeout")
+			p.element.Get("offsetWidth") // force reflow
+			p.element.Get("classList").Call("add", "fadeout")
+
+		}
+	}
 }
 
 func (p *Popup) ListenForUpdates() {
@@ -49,11 +59,12 @@ func (p *Popup) ListenForUpdates() {
 		newMessage := <-InfoChan
 
 		p.Message = newMessage
-		p.TimeLeft = DISPLAY_TIME
 
-		// p.ctx.Set("textContent", p.Message)
-
-		go p.FadeOut()
+		if p.animating {
+			p.interrupt <- struct{}{}
+		} else {
+			go p.FadeOut()
+		}
 	}
 }
 
@@ -73,7 +84,7 @@ func (p *Popup) Render() vecty.ComponentOrHTML {
 
 func (p *Popup) Mount() {
 
-	p.ctx = js.Global().Get("document").Call("getElementById", ID)
+	p.element = js.Global().Get("document").Call("getElementById", ID)
 
 	go p.ListenForUpdates()
 
@@ -85,8 +96,10 @@ func (p *Popup) Mount() {
 
 func NewPopup() Popup {
 	popup := Popup{
-		Message:  "",
-		TimeLeft: 0,
+		Message:       "",
+		AnimationTime: 5,
+
+		interrupt: make(chan struct{}),
 	}
 
 	return popup

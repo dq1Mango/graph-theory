@@ -59,6 +59,10 @@ func (c *ChoiceBar) Render() vecty.ComponentOrHTML {
 	)
 }
 
+func (c *ChoiceBar) SetMode(mode uint) {
+	c.Clicks <- mode
+}
+
 func (c *ChoiceBar) Mount() {
 	go func() {
 		for {

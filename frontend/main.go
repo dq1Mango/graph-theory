@@ -59,6 +59,8 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 
 	go func() {
 		for {
+		start:
+
 			sequence := <-pruferCodeGeneration
 
 			var paresed []uint
@@ -69,14 +71,16 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 				num, err := strconv.Atoi(segment)
 
 				if err != nil {
-					components.InfoChan <- "Invalid Prufer Code"
-					continue
+					components.InfoChan <- "Cannot Parse Prufer Code"
+
+					// 'goto considered harmful' -Dijkstra 1968
+					goto start
 				}
 
 				paresed = append(paresed, uint(num))
 			}
 
-			graph.Actions <- actions.GraphFromPrufer{Prufer: paresed}
+			graph.Actions <- &actions.GraphFromPrufer{Prufer: paresed}
 		}
 	}()
 

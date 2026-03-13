@@ -463,10 +463,13 @@ func (g *GraphCanvas) RecomputeVertexPositions() actions.Action {
 
 }
 
-func (g *GraphCanvas) PruferFromGraph() actions.Action {
-
+func (g *GraphCanvas) ClearSelections() {
 	g.SelectedVertex = nil
 	g.ShiftSelected = nil
+}
+
+func (g *GraphCanvas) PruferFromGraph() actions.Action {
+	g.ClearSelections()
 
 	code, err := util.PruferCodeFromGraph(g.Graph)
 
@@ -478,6 +481,31 @@ func (g *GraphCanvas) PruferFromGraph() actions.Action {
 	fmt.Println(code)
 
 	return &actions.RecomputeVertexPositions{}
+}
+
+func (g *GraphCanvas) GraphFromPrufer(pruferCode []uint) actions.Action {
+	newGraph, err := util.GraphFromPruferCode(pruferCode...)
+
+	if err != nil {
+		InfoChan <- "Invalid Prufer Code"
+		return nil
+	}
+
+	g.ClearSelections()
+
+	g.NextLabel = uint(newGraph.Order())
+
+	g.Mode.SetMode(Ring)
+
+	g.Graph = newGraph
+
+	g.Bijection.Clear()
+	for i := range uint(newGraph.Order()) {
+		g.Bijection.Add(i, i)
+	}
+
+	return &actions.RecomputeVertexPositions{}
+
 }
 
 func (g *GraphCanvas) UpdateStats() {
@@ -522,6 +550,9 @@ func (g *GraphCanvas) handleActions() {
 			case *actions.PruferFromGraph:
 				a = g.PruferFromGraph()
 				// fmt.Printf("heres the type: %T\n", a)
+
+			case *actions.GraphFromPrufer:
+				a = g.GraphFromPrufer(action.Prufer)
 
 			case *actions.PopupMessage:
 				fmt.Println("Popup: ", action.Message)
