@@ -73,6 +73,10 @@ func InitGraphCanvas(size uint, id string) GraphCanvas {
 		NextLabel:       0,
 		VertexPositions: make(map[uint]model.Point)}
 
+	// Start with the trivial graph
+	// graph.Actions <- &actions.AddVertex{}
+	graph.addNextVertex(&model.Point{X: 0, Y: 0}, false)
+
 	return graph
 }
 

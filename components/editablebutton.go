@@ -1,9 +1,14 @@
 package components
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
+
+	"github.com/dq1Mango/graph-theory/actions"
 )
 
 type EditableButton struct {
@@ -12,15 +17,16 @@ type EditableButton struct {
 	editing bool
 	draft   string
 
-	Submit chan<- string
+	// Submit chan<- string
+	onSubmit func(string)
 }
 
-func NewEditableButton(label string, submit chan<- string) *EditableButton {
+func NewEditableButton(label string, onSubmit func(string)) *EditableButton {
 	return &EditableButton{
 		label: label,
 		draft: "",
 
-		Submit: submit,
+		onSubmit: onSubmit,
 	}
 }
 
@@ -90,7 +96,7 @@ func (e *EditableButton) renderEditor() vecty.ComponentOrHTML {
 
 func (e *EditableButton) commit() {
 	if e.draft != "" {
-		e.Submit <- e.draft
+		e.onSubmit(e.draft)
 	}
 	e.editing = false
 	vecty.Rerender(e)
@@ -101,3 +107,65 @@ func (e *EditableButton) cancel() {
 	e.editing = false
 	vecty.Rerender(e)
 }
+
+func NewGraphFromPrufer(action chan any) *EditableButton {
+
+	// pruferCodeGeneration := make(chan string, 2)
+
+	return NewEditableButton(
+		"construct graph from prufer code",
+
+		func(sequence string) {
+
+			var paresed []uint
+
+			for segment := range strings.SplitSeq(sequence, ",") {
+				segment = strings.TrimSpace(segment)
+
+				num, err := strconv.Atoi(segment)
+
+				if err != nil {
+					InfoChan <- "Cannot Parse Prufer Code"
+
+					// 'goto considered harmful' -Dijkstra 1968
+					// goto start
+				}
+
+				paresed = append(paresed, uint(num))
+			}
+
+			action <- &actions.GraphFromPrufer{Prufer: paresed}
+		},
+	)
+
+}
+
+// dang i had this rly fun way to do it with gotos, but i think its just worse
+// func (p *GraphFromPrufer) Mount() {
+//
+// 	go func() {
+// 		for {
+// 		start:
+//
+// 			sequence := <-p.Submit
+// 			var paresed []uint
+//
+// 			for segment := range strings.SplitSeq(sequence, ",") {
+// 				segment = strings.TrimSpace(segment)
+//
+// 				num, err := strconv.Atoi(segment)
+//
+// 				if err != nil {
+// 					InfoChan <- "Cannot Parse Prufer Code"
+//
+// 					// 'goto considered harmful' -Dijkstra 1968
+// 					goto start
+// 				}
+//
+// 				paresed = append(paresed, uint(num))
+// 			}
+//
+// 			p.actions <- &actions.GraphFromPrufer{Prufer: paresed}
+// 		}
+// 	}()
+// }
