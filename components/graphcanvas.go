@@ -15,9 +15,11 @@ import (
 	"github.com/hexops/vecty/prop"
 )
 
-const (
-	VERTEX_RADIUS = 5
-	CYCLE_RADIUS  = 30.0
+var (
+	VERTEX_RADIUS = 40.0
+	CYCLE_RADIUS  = 300.0
+	LINE_WIDTH    = 5.0
+	FONT_SIZE     = 1.0
 )
 
 // Display modes
@@ -149,6 +151,12 @@ func (g *GraphCanvas) SetCanvasTransform() {
 		fmt.Printf("width and height of canvas: %s not equal\n", g.Id)
 	}
 
+	g.Size = uint(width * dpr)
+	LINE_WIDTH = float64(g.Size) / 100.0
+	VERTEX_RADIUS = float64(g.Size) / 25.0
+	CYCLE_RADIUS = float64(g.Size) / 10.0 * 3.0
+	FONT_SIZE = float64(g.Size) * 0.067
+
 	// fmt.Printf("width: %f, height: %f\n", width, height)
 
 	canvas.Set("width", width*dpr)
@@ -169,13 +177,13 @@ func (g *GraphCanvas) SetCanvasTransform() {
 	// canvas.Get("style").Set("width", fmt.Sprintf("%fpx", width))
 	// canvas.Get("style").Set("height", fmt.Sprintf("%fpx", height))
 
-	scale := dpr * math.Min(width, height) / (float64(g.Size))
+	// scale := dpr * math.Min(width, height) / (float64(g.Size))
 
 	shift := dpr * width / 2
 
-	g.ctx.Call("setTransform", scale, 0, 0, -scale, shift, shift)
+	g.ctx.Call("setTransform", 1, 0, 0, -1, shift, shift)
 
-	g.Transform = model.NewTransform(scale, -scale, shift, shift)
+	g.Transform = model.NewTransform(1, -1, shift, shift)
 
 	g.Actions <- &actions.Draw{}
 }
@@ -245,7 +253,7 @@ func (g *GraphCanvas) Draw() {
 
 	// order := g.Graph.Order()
 	// radius := 30.0
-	g.ctx.Set("lineWidth", 1)
+	g.ctx.Set("lineWidth", LINE_WIDTH)
 
 	g.ctx.Set("strokeStyle", model.CurrentPalette.Base)
 
@@ -281,8 +289,9 @@ func (g *GraphCanvas) Draw() {
 	g.ctx.Set("textAlign", "center")
 
 	// ALERT: floating magic number over here
-	fontSize := float64(g.Size) * 0.067
-	g.ctx.Set("font", fmt.Sprintf("%.2fpx Arial", fontSize))
+	// fontSize := float64(g.Size) * 0.067
+	// fontSize := 60.0
+	g.ctx.Set("font", fmt.Sprintf("%.2fpx Arial", FONT_SIZE))
 
 	// flip y back to normal for this draw call
 	g.ctx.Call("transform", 1, 0, 0, -1, 0, 0)
@@ -300,7 +309,7 @@ func (g *GraphCanvas) Draw() {
 
 func (g *GraphCanvas) HighlightActiveVertex(mousePos model.Point) actions.Action {
 
-	g.ctx.Set("lineWidth", 1)
+	g.ctx.Set("lineWidth", LINE_WIDTH)
 	g.ctx.Set("strokeStyle", model.CurrentPalette.Base)
 
 	for _, pos := range g.VertexPositions {
@@ -321,7 +330,7 @@ func (g *GraphCanvas) HighlightActiveVertex(mousePos model.Point) actions.Action
 
 func (g *GraphCanvas) HighlightSelectedVerticies() {
 
-	g.ctx.Set("lineWidth", 1)
+	g.ctx.Set("lineWidth", LINE_WIDTH)
 
 	if id := g.SelectedVertex; id != nil {
 		g.ctx.Set("strokeStyle", model.CurrentPalette.Red)

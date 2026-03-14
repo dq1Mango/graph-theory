@@ -67,8 +67,8 @@ p {
 
   aspect-ratio: 1 / 1;
 
-  /* width: 500px; */
-  /* height: 500px; */
+  width: 500px;
+  height: 500px;
 }
 
 .canvas {
