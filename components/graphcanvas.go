@@ -74,8 +74,8 @@ func InitGraphCanvas(size uint, id string) GraphCanvas {
 		VertexPositions: make(map[uint]model.Point)}
 
 	// Start with the trivial graph
-	// graph.Actions <- &actions.AddVertex{}
-	graph.addNextVertex(&model.Point{X: 0, Y: 0}, false)
+	graph.Actions <- &actions.MouseDown{Pos: model.Point{X: 0, Y: 0}}
+	// graph.addNextVertex(&model.Point{X: 0, Y: 0}, false)
 
 	return graph
 }
@@ -478,7 +478,7 @@ func (g *GraphCanvas) PruferFromGraph() actions.Action {
 	code, err := util.PruferCodeFromGraph(g.Graph)
 
 	if err != nil {
-		fmt.Println(err)
+		InfoChan <- err.Error()
 		return &actions.RecomputeVertexPositions{}
 	}
 
@@ -491,7 +491,7 @@ func (g *GraphCanvas) GraphFromPrufer(pruferCode []uint) actions.Action {
 	newGraph, err := util.GraphFromPruferCode(pruferCode...)
 
 	if err != nil {
-		InfoChan <- "Invalid Prufer Code"
+		InfoChan <- err.Error()
 		return nil
 	}
 
