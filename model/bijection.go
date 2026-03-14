@@ -36,14 +36,13 @@ func (p *PosIntBijection) Labels() []uint {
 // Forwards implements Bijection.
 func (p *PosIntBijection) Forwards(from uint) uint {
 
-	// gograph.Graph
 	return p.forwards[from]
 }
 
 // Backwards implements Bijection.
 func (p *PosIntBijection) Backwards(to uint) uint {
 
-	// erm, did you know binary search run in O(ln(n)) 🤓
+	// erm, did you know binary search runs in O(ln(n)) 🤓
 	for index, value := range p.forwards {
 		if value == to {
 			return uint(index)

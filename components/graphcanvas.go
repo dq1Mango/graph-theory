@@ -86,7 +86,7 @@ func (g *GraphCanvas) Render() vecty.ComponentOrHTML {
 		g.Mode,
 		elem.Div(
 
-			vecty.Markup(vecty.Class("canvas-wrapper")),
+			vecty.Markup(vecty.Class("canvas-wrapper"), prop.ID("canvas-wrapper")),
 			elem.Canvas(
 				vecty.Markup(
 					vecty.Class("canvas"),
@@ -154,8 +154,20 @@ func (g *GraphCanvas) SetCanvasTransform() {
 	canvas.Set("width", width*dpr)
 	canvas.Set("height", height*dpr)
 
-	canvas.Get("style").Set("width", fmt.Sprintf("%fpx", width))
-	canvas.Get("style").Set("height", fmt.Sprintf("%fpx", height))
+	wrapper := js.Global().Get("document").Call("getElementById", "canvas-wrapper")
+
+	wrapper_height := wrapper.Get("clientHeight").Float()
+	wrapper_width := wrapper.Get("clientWidth").Float()
+
+	limiter := math.Min(wrapper_height, wrapper_width)
+
+	// wrapper.Set("clientWidth", limiter)
+	// wrapper.Set("clientHeight", limiter)
+	wrapper.Get("style").Set("width", fmt.Sprintf("%fpx", limiter))
+	wrapper.Get("style").Set("height", fmt.Sprintf("%fpx", limiter))
+
+	// canvas.Get("style").Set("width", fmt.Sprintf("%fpx", width))
+	// canvas.Get("style").Set("height", fmt.Sprintf("%fpx", height))
 
 	scale := dpr * math.Min(width, height) / (float64(g.Size))
 
@@ -164,11 +176,23 @@ func (g *GraphCanvas) SetCanvasTransform() {
 	g.ctx.Call("setTransform", scale, 0, 0, -scale, shift, shift)
 
 	g.Transform = model.NewTransform(scale, -scale, shift, shift)
+
+	g.Actions <- &actions.Draw{}
 }
 
 func (c *GraphCanvas) Mount() {
 	canvas := js.Global().Get("document").Call("getElementById", c.Id)
+	wrapper := js.Global().Get("document").Call("getElementById", "canvas-wrapper")
 	c.ctx = canvas.Call("getContext", "2d")
+
+	resizeFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
+		c.SetCanvasTransform()
+		return nil
+	})
+
+	observer := js.Global().Get("ResizeObserver").New(resizeFunc)
+	observer.Call("observe", wrapper)
+	// c.observer = observer
 
 	c.SetCanvasTransform()
 
@@ -330,6 +354,12 @@ func (g *GraphCanvas) HandleMouseClick(mousePos model.Point, shift bool) actions
 					g.ShiftSelected = nil
 				} else if g.SelectedVertex == nil || id != *g.SelectedVertex {
 					g.ShiftSelected = &id
+
+					// this second condition isnt nessecary bc of the prior control flow,
+					// but it is here anyway for the spiri of go's readability
+					if g.SelectedVertex != nil && *g.SelectedVertex != id {
+						return &actions.AddEdge{Vertex1: g.SelectedVertex, Vertex2: g.ShiftSelected}
+					}
 				}
 
 			}
@@ -381,9 +411,16 @@ func (g *GraphCanvas) addNextVertex(point *model.Point, connected bool) actions.
 func (g *GraphCanvas) RemoveVertex(id *uint) actions.Action {
 
 	if id != nil {
+
+		if g.Graph.Order() == 1 {
+			return &actions.PopupMessage{Message: "Vertex set cannot be empty"}
+		}
+
 		g.Graph.RemoveVertices(gograph.NewVertex(*id))
 
 		g.Bijection.Remove(g.Bijection.Backwards(*id), *id)
+
+		delete(g.VertexPositions, *id)
 
 		g.SelectedVertex = nil
 		g.ShiftSelected = nil
