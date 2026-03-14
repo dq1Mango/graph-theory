@@ -131,3 +131,16 @@ mark {
   background-color: var(--surface2);
   color: var(--lavender);
 }
+
+.fadeout {
+  color: var(--red);
+}
+
+@keyframes fadeOut {
+  from {
+    color: var(--red);
+  }
+  to {
+    color: transparent;
+  }
+}

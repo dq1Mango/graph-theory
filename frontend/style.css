@@ -70,26 +70,17 @@ p {
   width: 100%;
   aspect-ratio: 1 / 1;
   border: 2px solid;
-  /*look at this commment*/
-}
-
-@keyframes fadeOut {
-  from {
-    color: red;
-  }
-  to {
-    color: transparent;
-  }
 }
 
 .popup {
   color: transparent;
+  min-height: 2em;
 }
 
 .fadeout {
   animation: fadeOut;
   animation-duration: 5s;
-  color: red;
+  animation-delay: 3s;
 }
 
 .dropdown {
