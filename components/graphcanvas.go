@@ -18,6 +18,8 @@ import (
 const (
 	VERTEX_RADIUS = 5
 	CYCLE_RADIUS  = 30.0
+	LINE_WIDTH    = 1
+	FONT_SIZE     = 6.7
 )
 
 // Display modes
@@ -245,7 +247,7 @@ func (g *GraphCanvas) Draw() {
 
 	// order := g.Graph.Order()
 	// radius := 30.0
-	g.ctx.Set("lineWidth", 1)
+	g.ctx.Set("lineWidth", LINE_WIDTH)
 
 	g.ctx.Set("strokeStyle", model.CurrentPalette.Base)
 
@@ -281,8 +283,8 @@ func (g *GraphCanvas) Draw() {
 	g.ctx.Set("textAlign", "center")
 
 	// ALERT: floating magic number over here
-	fontSize := float64(g.Size) * 0.067
-	g.ctx.Set("font", fmt.Sprintf("%.2fpx Arial", fontSize))
+	// fontSize := float64(g.Size) * 0.067
+	g.ctx.Set("font", fmt.Sprintf("%.2fpx Arial", FONT_SIZE))
 
 	// flip y back to normal for this draw call
 	g.ctx.Call("transform", 1, 0, 0, -1, 0, 0)
@@ -300,7 +302,7 @@ func (g *GraphCanvas) Draw() {
 
 func (g *GraphCanvas) HighlightActiveVertex(mousePos model.Point) actions.Action {
 
-	g.ctx.Set("lineWidth", 1)
+	g.ctx.Set("lineWidth", LINE_WIDTH)
 	g.ctx.Set("strokeStyle", model.CurrentPalette.Base)
 
 	for _, pos := range g.VertexPositions {
@@ -321,7 +323,7 @@ func (g *GraphCanvas) HighlightActiveVertex(mousePos model.Point) actions.Action
 
 func (g *GraphCanvas) HighlightSelectedVerticies() {
 
-	g.ctx.Set("lineWidth", 1)
+	g.ctx.Set("lineWidth", LINE_WIDTH)
 
 	if id := g.SelectedVertex; id != nil {
 		g.ctx.Set("strokeStyle", model.CurrentPalette.Red)
