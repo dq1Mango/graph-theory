@@ -42,6 +42,7 @@ type PageView struct {
 
 	theme model.Theme
 	graph *components.GraphCanvas
+	// algorithm *components.AlgorithmWalk
 }
 
 // Render implements the vecty.Component interface.
@@ -107,6 +108,12 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 					Text: "generate prufer code",
 					OnClick: func(*vecty.Event) {
 						graph.Actions <- &actions.PruferFromGraph{}
+					},
+				},
+				&components.Button{
+					Text: "finally something cool",
+					OnClick: func(*vecty.Event) {
+						graph.Actions <- &actions.SetIterator{Iterator: "pruferCode"}
 					},
 				},
 				components.NewGraphFromPrufer(

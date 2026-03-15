@@ -209,3 +209,7 @@ p {
   flex-shrink: 0;
   width: auto;
 }
+
+.algorithm {
+  justify-content: center;
+}

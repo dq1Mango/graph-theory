@@ -48,3 +48,13 @@ type PruferFromGraph struct{}
 type GraphFromPrufer struct {
 	Prufer []uint
 }
+
+type IteratorNext struct{}
+
+type IteratorPrevious struct{}
+
+type IteratorIterate struct{}
+
+type SetIterator struct {
+	Iterator string
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/dq1Mango/gograph/util"
 	"github.com/dq1Mango/graph-theory/actions"
 	"github.com/dq1Mango/graph-theory/model"
+
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
@@ -28,11 +29,10 @@ const (
 	Ring
 )
 
-// var model.CurrentPalette = model.CurrentPalette
-
 type GraphCanvas struct {
 	vecty.Core
-	ctx     js.Value
+	ctx js.Value
+
 	Id      string
 	Size    uint
 	Actions chan any
@@ -47,6 +47,8 @@ type GraphCanvas struct {
 	ShiftSelected   *uint
 
 	Transform model.Transform
+	Iterator  *AlgorithmWalk
+	Locked    bool
 }
 
 func InitGraphCanvas(size uint, id string) GraphCanvas {
@@ -73,7 +75,9 @@ func InitGraphCanvas(size uint, id string) GraphCanvas {
 
 		Bijection:       model.NewBijection(),
 		NextLabel:       0,
-		VertexPositions: make(map[uint]model.Point)}
+		VertexPositions: make(map[uint]model.Point),
+		Iterator:        &AlgorithmWalk{},
+	}
 
 	// Start with the trivial graph
 	graph.Actions <- &actions.MouseDown{Pos: model.Point{X: 0, Y: 0}}
@@ -124,6 +128,7 @@ func (g *GraphCanvas) Render() vecty.ComponentOrHTML {
 				),
 			),
 		),
+		g.Iterator,
 	)
 }
 
@@ -555,6 +560,33 @@ func (g *GraphCanvas) UpdateStats() {
 	vecty.Rerender(g.Stats)
 }
 
+func (g *GraphCanvas) SetIterator(name string) actions.Action {
+	var iterator GraphIterator
+	var err error
+
+	switch name {
+	case "pruferCode":
+		iterator, err = NewPruferCodeIterator(g)
+	}
+
+	if err != nil {
+		InfoChan <- err.Error()
+		return nil
+	}
+
+	g.Locked = true
+
+	if g.Iterator.iterator != nil {
+		//g.Iterator.UnIterate()
+	}
+
+	g.Iterator.iterator = &iterator
+
+	vecty.Rerender(g.Iterator)
+
+	return &actions.Draw{}
+}
+
 func (g *GraphCanvas) handleActions() {
 	for {
 		a := <-g.Actions
@@ -596,6 +628,9 @@ func (g *GraphCanvas) handleActions() {
 
 			case *actions.GraphFromPrufer:
 				a = g.GraphFromPrufer(action.Prufer)
+
+			case *actions.SetIterator:
+				a = g.SetIterator(action.Iterator)
 
 			case *actions.PopupMessage:
 				fmt.Println("Popup: ", action.Message)
