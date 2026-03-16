@@ -49,12 +49,10 @@ type GraphFromPrufer struct {
 	Prufer []uint
 }
 
-type IteratorNext struct{}
-
-type IteratorPrevious struct{}
-
-type IteratorIterate struct{}
-
 type SetIterator struct {
 	Iterator string
+}
+
+type SetBijection struct {
+	Bijection model.Bijection
 }

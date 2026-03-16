@@ -29,6 +29,8 @@ const (
 	Ring
 )
 
+var WhereNumbersStart uint = 0
+
 type GraphCanvas struct {
 	vecty.Core
 	ctx js.Value
@@ -297,7 +299,7 @@ func (g *GraphCanvas) Draw() {
 		point := g.VertexPositions[id]
 
 		// y coordinate needs to be negated since we flipped
-		g.ctx.Call("fillText", label, point.X, -point.Y)
+		g.ctx.Call("fillText", label+WhereNumbersStart, point.X, -point.Y)
 	}
 
 	g.ctx.Call("restore")
@@ -494,7 +496,7 @@ func (g *GraphCanvas) RecomputeVertexPositions() actions.Action {
 			point := model.PointFromTheta(deltaTheta * float64(i))
 			point.Scale(radius)
 
-			v := g.Bijection.Forwards(label)
+			v := g.Bijection.Backwards(label)
 
 			g.VertexPositions[v] = point
 
@@ -531,6 +533,11 @@ func (g *GraphCanvas) PruferFromGraph() actions.Action {
 }
 
 func (g *GraphCanvas) GraphFromPrufer(pruferCode []uint) actions.Action {
+
+	for i := range pruferCode {
+		pruferCode[i] -= WhereNumbersStart
+	}
+
 	newGraph, err := util.GraphFromPruferCode(pruferCode...)
 
 	if err != nil {
@@ -557,6 +564,18 @@ func (g *GraphCanvas) GraphFromPrufer(pruferCode []uint) actions.Action {
 
 func (g *GraphCanvas) UpdateStats() {
 	vecty.Rerender(g.Stats)
+}
+
+func (g *GraphCanvas) SetBijection(bi model.Bijection) actions.Action {
+	ids := g.Bijection.SortedIds()
+
+	fmt.Println("got these ids", ids)
+
+	g.Bijection = bi
+
+	g.Bijection.Add(ids...)
+
+	return &actions.Draw{}
 }
 
 func (g *GraphCanvas) SetIterator(name string) actions.Action {
@@ -630,6 +649,9 @@ func (g *GraphCanvas) handleActions() {
 
 			case *actions.SetIterator:
 				a = g.SetIterator(action.Iterator)
+
+			case *actions.SetBijection:
+				a = g.SetBijection(action.Bijection)
 
 			case *actions.PopupMessage:
 				fmt.Println("Popup: ", action.Message)

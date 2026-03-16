@@ -1,7 +1,7 @@
 package components
 
 import (
-	"github.com/dq1Mango/graph-theory/model"
+	// "github.com/dq1Mango/graph-theory/model"
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
@@ -15,13 +15,16 @@ type Dropdown struct {
 	options  []string
 	selected string
 	open     bool
+
+	onChange func(string)
 }
 
-func NewDropdown(title string, options ...string) *Dropdown {
+func NewDropdown(title string, onChange func(string), options ...string) *Dropdown {
 	return &Dropdown{
 		title:    title,
 		options:  options,
 		selected: options[0],
+		onChange: onChange,
 	}
 }
 
@@ -58,11 +61,16 @@ func (d *Dropdown) renderMenu() vecty.ComponentOrHTML {
 					"dropdown-item-selected": opt == d.selected,
 				},
 				event.Click(func(e *vecty.Event) {
+					if opt == d.selected {
+						return
+					}
+
 					d.selected = opt
 					d.open = false
 					vecty.Rerender(d)
 
-					model.ThemChan <- d.selected
+					// model.ThemChan <- d.selected
+					d.onChange(opt)
 				}),
 			),
 			vecty.Text(opt),

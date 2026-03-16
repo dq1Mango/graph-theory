@@ -55,7 +55,13 @@ func (a *AlgorithmWalk) Render() vecty.ComponentOrHTML {
 					}
 					vecty.Rerender(a)
 				}},
-				&Button{Text: "Iterate", OnClick: func(e *vecty.Event) { iterator.Iterate() }},
+				&Button{Text: "Iterate", OnClick: func(e *vecty.Event) {
+					err := iterator.Iterate()
+					if err != nil {
+						InfoChan <- err.Error()
+					}
+					vecty.Rerender(a)
+				}},
 			),
 		)
 	} else {
@@ -76,7 +82,6 @@ type PruferCodeIterator struct {
 
 func NewPruferCodeIterator(g *GraphCanvas) (GraphIterator, error) {
 	graph := g.Graph
-	fmt.Println("we think tthis is the selection: ", *g.SelectedVertex)
 	length := graph.Order() - 2
 
 	// ensure our graph is *probably* a tree
@@ -93,9 +98,10 @@ func NewPruferCodeIterator(g *GraphCanvas) (GraphIterator, error) {
 	// sort all of the verticies
 	slices.SortFunc(verticies,
 		func(u, v *gograph.Vertex[uint]) int {
-			if u.Label() > v.Label() {
+			uLabel, vLabel := g.Bijection.Forwards(u.Label()), g.Bijection.Forwards(v.Label())
+			if uLabel > vLabel {
 				return 1
-			} else if u.Label() == v.Label() {
+			} else if uLabel == vLabel {
 				return 0
 			} else {
 				return -1
@@ -187,7 +193,7 @@ func (p *PruferCodeIterator) Iterate() error {
 		}
 	}
 
-	return nil
+	return &IteratorEnd{}
 }
 
 func (p *PruferCodeIterator) Render() vecty.ComponentOrHTML {

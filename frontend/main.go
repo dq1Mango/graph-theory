@@ -54,7 +54,6 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 
 	popup := components.NewPopup()
 
-	themeDropDown := components.NewDropdown("theme", "dark", "catppuccin")
 	// fmt.Println(popup)
 
 	return elem.Body(
@@ -66,7 +65,7 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 			),
 		),
 
-		themeDropDown,
+		components.NewThemeChanger(),
 
 		&popup,
 
@@ -116,6 +115,24 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 						graph.Actions <- &actions.SetIterator{Iterator: "pruferCode"}
 					},
 				},
+				components.NewDropdown("Bijection", func(bi string) {
+					var Bijection model.Bijection
+
+					switch bi {
+					case "continous":
+						Bijection = model.NewBijection()
+
+					case "static":
+						Bijection = model.NewFakeBijection()
+
+					default:
+						fmt.Println("Uknown bijection choice: ", bi)
+						return
+					}
+
+					graph.Actions <- &actions.SetBijection{Bijection: Bijection}
+				}, "continous", "static"),
+
 				components.NewGraphFromPrufer(
 					graph.Actions,
 				),
