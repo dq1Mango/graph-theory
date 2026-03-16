@@ -18,6 +18,11 @@ p {
   min-height: 1em;
 }
 
+.centered {
+  display: flex;
+  justify-content: center;
+}
+
 .content-box {
   display: flex;
   flex-direction: row;
@@ -211,5 +216,18 @@ p {
 }
 
 .algorithm {
+  /* justify-content: center; */
+  padding: 1em;
+}
+
+.algorithm-options {
+  display: flex;
   justify-content: center;
+  gap: 1em;
+  padding: 0.5em;
+}
+
+.algorithm-options > button {
+  border-radius: 1em;
+  padding: 0.5em;
 }

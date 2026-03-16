@@ -39,15 +39,24 @@ func (a *AlgorithmWalk) Render() vecty.ComponentOrHTML {
 	if a.iterator != nil {
 		iterator := (*a.iterator)
 		return elem.Div(
+
+			vecty.Markup(
+				vecty.Class("algorithm"),
+			),
 			iterator.Render(),
-			&Button{Text: "Step", OnClick: func(e *vecty.Event) {
-				err := iterator.Next()
-				if err != nil {
-					InfoChan <- err.Error()
-				}
-				vecty.Rerender(a)
-			}},
-			&Button{Text: "Iterate", OnClick: func(e *vecty.Event) { iterator.Iterate() }},
+			elem.Div(
+				vecty.Markup(
+					vecty.Class("algorithm-options"),
+				),
+				&Button{Text: "Step", OnClick: func(e *vecty.Event) {
+					err := iterator.Next()
+					if err != nil {
+						InfoChan <- err.Error()
+					}
+					vecty.Rerender(a)
+				}},
+				&Button{Text: "Iterate", OnClick: func(e *vecty.Event) { iterator.Iterate() }},
+			),
 		)
 	} else {
 		return nil
@@ -58,7 +67,7 @@ type PruferCodeIterator struct {
 	graph *GraphCanvas
 
 	prufer       []uint
-	smallestLeaf *int
+	smallestLeaf *uint
 	neighbor     *uint
 
 	verticies []*gograph.Vertex[uint]
@@ -67,6 +76,7 @@ type PruferCodeIterator struct {
 
 func NewPruferCodeIterator(g *GraphCanvas) (GraphIterator, error) {
 	graph := g.Graph
+	fmt.Println("we think tthis is the selection: ", *g.SelectedVertex)
 	length := graph.Order() - 2
 
 	// ensure our graph is *probably* a tree
@@ -93,13 +103,17 @@ func NewPruferCodeIterator(g *GraphCanvas) (GraphIterator, error) {
 		},
 	)
 
-	return &PruferCodeIterator{
+	iterator := &PruferCodeIterator{
 		graph: g,
 		// super big capacity optimization here
 		prufer:    make([]uint, 0, length),
 		verticies: verticies,
 		length:    int(length),
-	}, nil
+	}
+
+	err := iterator.Next()
+
+	return iterator, err
 }
 
 func (p *PruferCodeIterator) Yield() bool {
@@ -123,24 +137,33 @@ func (p *PruferCodeIterator) Next() error {
 		return &IteratorEnd{}
 	}
 
+	if p.smallestLeaf != nil && p.neighbor != nil {
+		p.graph.RemoveVertex(p.smallestLeaf)
+		p.prufer = append(p.prufer, *p.neighbor)
+	}
+
 	// graph := p.graph.Graph
 
 	for index, vertex := range p.verticies {
 
-		// we shall see this counts as a 'leaf' for a directed graph
+		// we shall see if this counts as a 'leaf' for a directed graph
 		if vertex.InDegree() == 1 {
 
-			bruh := int(vertex.Label())
+			// what phenomenal programming
+			bruh := uint(vertex.Label())
 			p.smallestLeaf = &bruh
 
 			neighbor := vertex.Neighbors()[0].Label()
 			p.neighbor = &neighbor
 
-			p.prufer = append(p.prufer, neighbor)
+			// p.prufer = append(p.prufer, neighbor)
 
-			cantOneline := (p.verticies[index].Label())
-			p.graph.RemoveVertex(&cantOneline)
+			// cantOneline := (p.verticies[index].Label())
+			// p.graph.RemoveVertex(&cantOneline)
 			p.verticies = slices.Delete(p.verticies, index, index+1)
+
+			p.graph.SelectedVertex = &bruh
+			p.graph.ShiftSelected = &neighbor
 
 			// It should be noted i do not like this, but maybe it will be fine anyway
 			p.graph.Actions <- &actions.Draw{}
@@ -169,27 +192,33 @@ func (p *PruferCodeIterator) Iterate() error {
 
 func (p *PruferCodeIterator) Render() vecty.ComponentOrHTML {
 
-	var leafText *vecty.HTML
-	var neighborText *vecty.HTML
+	leafText := "Smallest Leaf: "
+	neighborText := "Leaf's Neigbor: "
 
 	if p.smallestLeaf != nil {
-		leafText = elem.Paragraph(vecty.Text(fmt.Sprintf("Smallest Leaf: %d", *p.smallestLeaf)))
+		leafText += fmt.Sprintf("%d", *p.smallestLeaf)
 	}
 
 	if p.neighbor != nil {
-		neighborText = elem.Paragraph(vecty.Text(fmt.Sprintf("Leaf's Neighbor: %d", *p.neighbor)))
+		neighborText += fmt.Sprintf("%d", *p.neighbor)
 	}
 
 	return elem.Div(
-		vecty.Markup(
-			vecty.Class("algorithm"),
-		),
 
-		elem.Heading3(vecty.Text("Prufer Code Generation")),
+		elem.Heading3(
+			vecty.Markup(vecty.Class("centered")),
+			vecty.Text("Prufer Code Generation"),
+		),
 
 		elem.Paragraph(vecty.Text(fmt.Sprintf("Current Code: %v", p.prufer))),
 
-		leafText,
-		neighborText,
+		elem.Paragraph(
+			vecty.Markup(vecty.Class("red")),
+			vecty.Text(leafText),
+		),
+		elem.Paragraph(
+			vecty.Markup(vecty.Class("blue")),
+			vecty.Text(neighborText),
+		),
 	)
 }

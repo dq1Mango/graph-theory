@@ -41,7 +41,7 @@ type GraphCanvas struct {
 	Mode    *ChoiceBar
 
 	Bijection       model.Bijection
-	NextLabel       uint
+	NextId          uint
 	VertexPositions map[uint]model.Point
 	SelectedVertex  *uint
 	ShiftSelected   *uint
@@ -74,7 +74,7 @@ func InitGraphCanvas(size uint, id string) GraphCanvas {
 		Mode:    NewChoiceBar(modeUpdates, "freeform", "ring"),
 
 		Bijection:       model.NewBijection(),
-		NextLabel:       0,
+		NextId:          0,
 		VertexPositions: make(map[uint]model.Point),
 		Iterator:        &AlgorithmWalk{},
 	}
@@ -293,8 +293,8 @@ func (g *GraphCanvas) Draw() {
 
 	// flip y back to normal for this draw call
 	g.ctx.Call("transform", 1, 0, 0, -1, 0, 0)
-	for _, label := range g.Bijection.Labels() {
-		point := g.VertexPositions[g.Bijection.Forwards(label)]
+	for id, label := range g.Bijection.Labeling() {
+		point := g.VertexPositions[id]
 
 		// y coordinate needs to be negated since we flipped
 		g.ctx.Call("fillText", label, point.X, -point.Y)
@@ -375,7 +375,7 @@ func (g *GraphCanvas) HandleMouseClick(mousePos model.Point, shift bool) actions
 		}
 	}
 
-	nextId := g.NextLabel
+	nextId := g.Bijection.NextId()
 	result := g.addNextVertex(&mousePos, false)
 	g.SelectedVertex = &nextId
 
@@ -385,7 +385,7 @@ func (g *GraphCanvas) HandleMouseClick(mousePos model.Point, shift bool) actions
 func (g *GraphCanvas) addNextVertex(point *model.Point, connected bool) actions.Action {
 	// order := uint(c.Graph.Order())
 
-	vertex := gograph.NewVertex(g.NextLabel)
+	vertex := gograph.NewVertex(g.Bijection.NextId())
 
 	if g.Mode.Selected == FreeForm {
 		if point != nil {
@@ -397,8 +397,7 @@ func (g *GraphCanvas) addNextVertex(point *model.Point, connected bool) actions.
 	}
 
 	// g.bijection = append(g.bijection, g.nextLabel)
-	g.Bijection.Add(0, g.NextLabel)
-	g.NextLabel++
+	g.Bijection.AddNext()
 
 	if connected {
 		for _, v := range g.Graph.GetAllVertices() {
@@ -425,7 +424,7 @@ func (g *GraphCanvas) RemoveVertex(id *uint) actions.Action {
 
 		g.Graph.RemoveVertices(gograph.NewVertex(*id))
 
-		g.Bijection.Remove(g.Bijection.Backwards(*id), *id)
+		g.Bijection.Remove(*id, 0)
 
 		delete(g.VertexPositions, *id)
 
@@ -541,15 +540,15 @@ func (g *GraphCanvas) GraphFromPrufer(pruferCode []uint) actions.Action {
 
 	g.ClearSelections()
 
-	g.NextLabel = uint(newGraph.Order())
+	g.NextId = uint(newGraph.Order())
 
 	g.Mode.SetMode(Ring)
 
 	g.Graph = newGraph
 
 	g.Bijection.Clear()
-	for i := range uint(newGraph.Order()) {
-		g.Bijection.Add(i, i)
+	for range uint(newGraph.Order()) {
+		g.Bijection.AddNext()
 	}
 
 	return &actions.RecomputeVertexPositions{}
