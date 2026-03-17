@@ -3,13 +3,13 @@ package components
 import (
 	// "errors"
 	"fmt"
-	"slices"
+	// "slices"
 
-	"github.com/dq1Mango/gograph"
-	"github.com/dq1Mango/gograph/util"
 	"github.com/dq1Mango/graph-theory/actions"
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
+	"github.com/hmdsefi/gograph"
+	"github.com/hmdsefi/gograph/util"
 )
 
 type IteratorEnd struct{}
@@ -48,6 +48,13 @@ func (a *AlgorithmWalk) Render() vecty.ComponentOrHTML {
 				vecty.Markup(
 					vecty.Class("algorithm-options"),
 				),
+				&Button{Text: "UnStep", OnClick: func(e *vecty.Event) {
+					err := iterator.Previous()
+					if err != nil {
+						InfoChan <- err.Error()
+					}
+					vecty.Rerender(a)
+				}},
 				&Button{Text: "Step", OnClick: func(e *vecty.Event) {
 					err := iterator.Next()
 					if err != nil {
@@ -76,8 +83,9 @@ type PruferCodeIterator struct {
 	smallestLeaf *uint
 	neighbor     *uint
 
-	verticies []*gograph.Vertex[uint]
-	length    int
+	verticies        []*gograph.Vertex[uint]
+	removedVerticies []*gograph.Vertex[uint]
+	length           int
 }
 
 func NewPruferCodeIterator(g *GraphCanvas) (GraphIterator, error) {
@@ -96,25 +104,15 @@ func NewPruferCodeIterator(g *GraphCanvas) (GraphIterator, error) {
 	verticies := graph.GetAllVertices()
 
 	// sort all of the verticies
-	slices.SortFunc(verticies,
-		func(u, v *gograph.Vertex[uint]) int {
-			uLabel, vLabel := g.Bijection.Forwards(u.Label()), g.Bijection.Forwards(v.Label())
-			if uLabel > vLabel {
-				return 1
-			} else if uLabel == vLabel {
-				return 0
-			} else {
-				return -1
-			}
-		},
-	)
+	SortVerticies(verticies)
 
 	iterator := &PruferCodeIterator{
 		graph: g,
 		// super big capacity optimization here
-		prufer:    make([]uint, 0, length),
-		verticies: verticies,
-		length:    int(length),
+		prufer:           make([]uint, 0, length),
+		verticies:        verticies,
+		removedVerticies: make([]*gograph.Vertex[uint], 0, length),
+		length:           int(length),
 	}
 
 	err := iterator.Next()
@@ -145,12 +143,21 @@ func (p *PruferCodeIterator) Next() error {
 
 	if p.smallestLeaf != nil && p.neighbor != nil {
 		p.graph.RemoveVertex(p.smallestLeaf)
+
+		p.removedVerticies = append(p.removedVerticies, p.verticies[*p.smallestLeaf])
+		// p.verticies = slices.Delete(p.verticies, index, index+1)
+		p.verticies[*p.smallestLeaf] = nil
+
 		p.prufer = append(p.prufer, *p.neighbor)
 	}
 
 	// graph := p.graph.Graph
 
-	for index, vertex := range p.verticies {
+	for _, vertex := range p.verticies {
+
+		if vertex == nil {
+			continue
+		}
 
 		// we shall see if this counts as a 'leaf' for a directed graph
 		if vertex.InDegree() == 1 {
@@ -166,7 +173,6 @@ func (p *PruferCodeIterator) Next() error {
 
 			// cantOneline := (p.verticies[index].Label())
 			// p.graph.RemoveVertex(&cantOneline)
-			p.verticies = slices.Delete(p.verticies, index, index+1)
 
 			p.graph.SelectedVertex = &bruh
 			p.graph.ShiftSelected = &neighbor
@@ -183,7 +189,48 @@ func (p *PruferCodeIterator) Next() error {
 	return &util.NonTreeError{}
 
 }
-func (p *PruferCodeIterator) Previous() error { return nil }
+func (p *PruferCodeIterator) Previous() error {
+	if !p.UnYield() {
+		return &IteratorEnd{}
+	}
+
+	var i uint = uint(p.length) + 1
+	for true {
+		vertex := p.verticies[i]
+
+		if vertex == nil {
+
+			end := len(p.removedVerticies) - 1
+			lastRemoved := p.removedVerticies[end]
+			p.removedVerticies = p.removedVerticies[:end]
+			p.verticies[i] = lastRemoved
+			// lastId := lastRemoved.Label()
+
+			p.graph.SelectedVertex = &i
+			p.smallestLeaf = &i
+
+			p.graph.ShiftSelected = &p.prufer[end]
+			p.neighbor = &p.prufer[end]
+
+			pos := p.graph.VertexPositions[lastRemoved.Label()]
+			p.graph.AddVertex(i, &pos, false)
+			p.graph.AddEdge(&i, &p.prufer[end])
+
+			p.prufer = p.prufer[:end]
+
+			p.graph.Actions <- &actions.Draw{}
+
+			return nil
+		}
+
+		i--
+
+	}
+
+	// p.graph.Bijection.Set(lastRemoved.Label(), i)
+
+	panic("should't be possible")
+}
 func (p *PruferCodeIterator) Iterate() error {
 	for p.Yield() {
 		err := p.Next()

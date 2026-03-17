@@ -3,12 +3,13 @@ package components
 import (
 	"fmt"
 	"math"
+	"slices"
 	"syscall/js"
 
-	"github.com/dq1Mango/gograph"
-	"github.com/dq1Mango/gograph/util"
 	"github.com/dq1Mango/graph-theory/actions"
 	"github.com/dq1Mango/graph-theory/model"
+	"github.com/hmdsefi/gograph"
+	"github.com/hmdsefi/gograph/util"
 
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
@@ -31,6 +32,21 @@ const (
 
 var WhereNumbersStart uint = 0
 
+func SortVerticies(verticies []*gograph.Vertex[uint]) {
+	slices.SortFunc(verticies,
+		func(u, v *gograph.Vertex[uint]) int {
+			// uLabel, vLabel := g.Bijection.Forwards(u.Label()), g.Bijection.Forwards(v.Label())
+			if u.Label() > v.Label() {
+				return 1
+			} else if u.Label() == v.Label() {
+				return 0
+			} else {
+				return -1
+			}
+		},
+	)
+}
+
 type GraphCanvas struct {
 	vecty.Core
 	ctx js.Value
@@ -42,8 +58,9 @@ type GraphCanvas struct {
 	Stats   *GraphStats
 	Mode    *ChoiceBar
 
-	Bijection       model.Bijection
-	NextId          uint
+	nextId uint
+
+	// Bijection       model.Bijection
 	VertexPositions map[uint]model.Point
 	SelectedVertex  *uint
 	ShiftSelected   *uint
@@ -75,8 +92,7 @@ func InitGraphCanvas(size uint, id string) GraphCanvas {
 		Actions: actionChan,
 		Mode:    NewChoiceBar(modeUpdates, "freeform", "ring"),
 
-		Bijection:       model.NewBijection(),
-		NextId:          0,
+		// Bijection:       model.NewBijection(),
 		VertexPositions: make(map[uint]model.Point),
 		Iterator:        &AlgorithmWalk{},
 	}
@@ -295,8 +311,8 @@ func (g *GraphCanvas) Draw() {
 
 	// flip y back to normal for this draw call
 	g.ctx.Call("transform", 1, 0, 0, -1, 0, 0)
-	for id, label := range g.Bijection.Labeling() {
-		point := g.VertexPositions[id]
+	for label, point := range g.VertexPositions {
+		// point := g.VertexPositions[id]
 
 		// y coordinate needs to be negated since we flipped
 		g.ctx.Call("fillText", label+WhereNumbersStart, point.X, -point.Y)
@@ -365,7 +381,7 @@ func (g *GraphCanvas) HandleMouseClick(mousePos model.Point, shift bool) actions
 					g.ShiftSelected = &id
 
 					// this second condition isnt nessecary bc of the prior control flow,
-					// but it is here anyway for the spiri of go's readability
+					// but it is here anyway for the spirit of go's readability
 					if g.SelectedVertex != nil && *g.SelectedVertex != id {
 						return &actions.AddEdge{Vertex1: g.SelectedVertex, Vertex2: g.ShiftSelected}
 					}
@@ -377,17 +393,21 @@ func (g *GraphCanvas) HandleMouseClick(mousePos model.Point, shift bool) actions
 		}
 	}
 
-	nextId := g.Bijection.NextId()
+	nextId := g.nextId
 	result := g.addNextVertex(&mousePos, false)
 	g.SelectedVertex = &nextId
 
 	return result
 }
 
-func (g *GraphCanvas) addNextVertex(point *model.Point, connected bool) actions.Action {
+func (g *GraphCanvas) FindNextLabel() {
+
+}
+
+func (g *GraphCanvas) AddVertex(id uint, point *model.Point, connected bool) actions.Action {
 	// order := uint(c.Graph.Order())
 
-	vertex := gograph.NewVertex(g.Bijection.NextId())
+	vertex := gograph.NewVertex(id)
 
 	if g.Mode.Selected == FreeForm {
 		if point != nil {
@@ -397,9 +417,6 @@ func (g *GraphCanvas) addNextVertex(point *model.Point, connected bool) actions.
 			return nil
 		}
 	}
-
-	// g.bijection = append(g.bijection, g.nextLabel)
-	g.Bijection.AddNext()
 
 	if connected {
 		for _, v := range g.Graph.GetAllVertices() {
@@ -411,9 +428,38 @@ func (g *GraphCanvas) addNextVertex(point *model.Point, connected bool) actions.
 
 	g.Graph.AddVertex(vertex)
 
+	g.nextId++
+
 	fmt.Println("added vertex")
 
 	return &actions.RecomputeVertexPositions{}
+}
+
+func (g *GraphCanvas) addNextVertex(point *model.Point, connected bool) actions.Action {
+	// order := uint(c.Graph.Order())
+
+	return g.AddVertex(g.nextId, point, connected)
+}
+
+func (g *GraphCanvas) ensureSequential() {
+	// ids := make([])
+	verticies := g.Graph.GetAllVertices()
+
+	// slices.SortFunc(verticies)
+	SortVerticies(verticies)
+
+	var expectedLabel uint = 0
+	for _, vertex := range verticies {
+		if vertex.Label() != expectedLabel {
+			// for i := index; i < len(verticies); i++ {
+			// 	label := verticies[i].Label()
+			// 	g.Graph.ChangeLabel(label, expectedLabel+uint(i))
+			// }
+			fmt.Println("expected: ", expectedLabel, "actual:", vertex.Label())
+			g.Graph.ChangeLabel(vertex.Label(), expectedLabel)
+		}
+		expectedLabel++
+	}
 }
 
 func (g *GraphCanvas) RemoveVertex(id *uint) actions.Action {
@@ -426,12 +472,12 @@ func (g *GraphCanvas) RemoveVertex(id *uint) actions.Action {
 
 		g.Graph.RemoveVertices(gograph.NewVertex(*id))
 
-		g.Bijection.Remove(*id, 0)
-
 		delete(g.VertexPositions, *id)
 
 		g.SelectedVertex = nil
 		g.ShiftSelected = nil
+
+		g.ensureSequential()
 
 		return &actions.RecomputeVertexPositions{}
 	} else {
@@ -481,8 +527,7 @@ func (g *GraphCanvas) RecomputeVertexPositions() actions.Action {
 
 	order := g.Graph.Order()
 	// verticies := g.Graph.GetAllVertices()
-	labels := g.Bijection.Labels()
-	fmt.Println(labels)
+	// fmt.Println(labels)
 	radius := CYCLE_RADIUS
 
 	g.VertexPositions = make(map[uint]model.Point)
@@ -492,18 +537,18 @@ func (g *GraphCanvas) RecomputeVertexPositions() actions.Action {
 
 		deltaTheta := 2 * math.Pi / float64(order)
 
-		for i, label := range labels {
+		for i, vertex := range g.Graph.GetAllVertices() {
 			point := model.PointFromTheta(deltaTheta * float64(i))
 			point.Scale(radius)
 
-			v := g.Bijection.Backwards(label)
+			// v := g.Bijection.Backwards(label)
 
-			g.VertexPositions[v] = point
+			g.VertexPositions[vertex.Label()] = point
 
 		}
 
 	} else if order == 1 {
-		g.VertexPositions[labels[0]] = model.Point{X: 0, Y: 0}
+		g.VertexPositions[0] = model.Point{X: 0, Y: 0}
 	}
 
 	fmt.Println("recomputed vertex positions")
@@ -547,16 +592,11 @@ func (g *GraphCanvas) GraphFromPrufer(pruferCode []uint) actions.Action {
 
 	g.ClearSelections()
 
-	g.NextId = uint(newGraph.Order())
+	// g.NextId = uint(newGraph.Order())
 
 	g.Mode.SetMode(Ring)
 
 	g.Graph = newGraph
-
-	g.Bijection.Clear()
-	for range uint(newGraph.Order()) {
-		g.Bijection.AddNext()
-	}
 
 	return &actions.RecomputeVertexPositions{}
 
@@ -566,16 +606,21 @@ func (g *GraphCanvas) UpdateStats() {
 	vecty.Rerender(g.Stats)
 }
 
-func (g *GraphCanvas) SetBijection(bi model.Bijection) actions.Action {
-	ids := g.Bijection.SortedIds()
+// func (g *GraphCanvas) SetBijection(bi model.Bijection) actions.Action {
+// 	ids := g.Bijection.SortedIds()
+//
+// 	fmt.Println("got these ids", ids)
+//
+// 	g.Bijection = bi
+//
+// 	g.Bijection.Add(ids...)
+//
+// 	return &actions.Draw{}
+// }
 
-	fmt.Println("got these ids", ids)
-
-	g.Bijection = bi
-
-	g.Bijection.Add(ids...)
-
-	return &actions.Draw{}
+func (g *GraphCanvas) SetLabeling(labeling string) actions.Action {
+	fmt.Println("still gotta do this")
+	return nil
 }
 
 func (g *GraphCanvas) SetIterator(name string) actions.Action {
@@ -585,12 +630,18 @@ func (g *GraphCanvas) SetIterator(name string) actions.Action {
 	switch name {
 	case "pruferCode":
 		iterator, err = NewPruferCodeIterator(g)
+	default:
+		fmt.Println("Uknown iterator: ", name)
+		return nil
 	}
 
 	if err != nil {
 		InfoChan <- err.Error()
 		return nil
 	}
+
+	// g.SetBijection(model.NewBijection())
+	// g.SetBijection(model.NewFakeBijection())
 
 	g.Locked = true
 
@@ -650,8 +701,8 @@ func (g *GraphCanvas) handleActions() {
 			case *actions.SetIterator:
 				a = g.SetIterator(action.Iterator)
 
-			case *actions.SetBijection:
-				a = g.SetBijection(action.Bijection)
+			// case *actions.SetLabeling:
+			// 	a = g.SetLabeling(action.Labeling)
 
 			case *actions.PopupMessage:
 				fmt.Println("Popup: ", action.Message)

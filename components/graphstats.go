@@ -3,12 +3,12 @@ package components
 import (
 	"fmt"
 
-	"github.com/dq1Mango/gograph"
-	path "github.com/dq1Mango/gograph/path"
 	"github.com/dq1Mango/graph-theory/model"
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/style"
+	"github.com/hmdsefi/gograph"
+	path "github.com/hmdsefi/gograph/path"
 )
 
 type GraphStats struct {

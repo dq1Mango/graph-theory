@@ -1,7 +1,6 @@
 package components
 
 import (
-	// "github.com/dq1Mango/graph-theory/model"
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hexops/vecty/event"
