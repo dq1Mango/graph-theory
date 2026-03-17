@@ -393,15 +393,19 @@ func (g *GraphCanvas) HandleMouseClick(mousePos model.Point, shift bool) actions
 		}
 	}
 
-	nextId := g.nextId
+	nextLabel := g.NextLabel()
 	result := g.addNextVertex(&mousePos, false)
-	g.SelectedVertex = &nextId
+	g.SelectedVertex = &nextLabel
 
 	return result
 }
 
 func (g *GraphCanvas) FindNextLabel() {
 
+}
+
+func (g *GraphCanvas) NextLabel() uint {
+	return uint(g.Graph.Order())
 }
 
 func (g *GraphCanvas) AddVertex(id uint, point *model.Point, connected bool) actions.Action {
@@ -423,12 +427,13 @@ func (g *GraphCanvas) AddVertex(id uint, point *model.Point, connected bool) act
 			g.Graph.AddEdge(vertex, v)
 		}
 	} else if g.SelectedVertex != nil {
+		// fmt.Println(vertex.Label(), *g.SelectedVertex)
 		g.Graph.AddEdge(vertex, g.Graph.GetVertexByID(*g.SelectedVertex))
 	}
 
 	g.Graph.AddVertex(vertex)
 
-	g.nextId++
+	// g.nextId++
 
 	fmt.Println("added vertex")
 
@@ -438,7 +443,7 @@ func (g *GraphCanvas) AddVertex(id uint, point *model.Point, connected bool) act
 func (g *GraphCanvas) addNextVertex(point *model.Point, connected bool) actions.Action {
 	// order := uint(c.Graph.Order())
 
-	return g.AddVertex(g.nextId, point, connected)
+	return g.AddVertex(g.NextLabel(), point, connected)
 }
 
 func (g *GraphCanvas) ensureSequential() {
@@ -455,8 +460,19 @@ func (g *GraphCanvas) ensureSequential() {
 			// 	label := verticies[i].Label()
 			// 	g.Graph.ChangeLabel(label, expectedLabel+uint(i))
 			// }
-			fmt.Println("expected: ", expectedLabel, "actual:", vertex.Label())
+			// fmt.Println("expected: ", expectedLabel, "actual:", vertex.Label())
+
+			g.VertexPositions[expectedLabel] = g.VertexPositions[vertex.Label()]
+			delete(g.VertexPositions, vertex.Label())
 			g.Graph.ChangeLabel(vertex.Label(), expectedLabel)
+			// if v := g.Graph.GetVertexByID(expectedLabel); v == nil {
+			// if err
+			//
+			// }
+
+			// fmt.Println("expected: ", expectedLabel, "changed:", vertex.Label())
+			// fmt.Println("i dont get it;", g.Graph.GetVertexByID(expectedLabel))
+
 		}
 		expectedLabel++
 	}
@@ -591,8 +607,6 @@ func (g *GraphCanvas) GraphFromPrufer(pruferCode []uint) actions.Action {
 	}
 
 	g.ClearSelections()
-
-	// g.NextId = uint(newGraph.Order())
 
 	g.Mode.SetMode(Ring)
 
