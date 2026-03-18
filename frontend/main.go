@@ -106,36 +106,16 @@ func (p *PageView) Render() vecty.ComponentOrHTML {
 				&components.Button{
 					Text: "generate prufer code",
 					OnClick: func(*vecty.Event) {
-						graph.Actions <- &actions.PruferFromGraph{}
-					},
-				},
-				&components.Button{
-					Text: "finally something cool",
-					OnClick: func(*vecty.Event) {
 						graph.Actions <- &actions.SetIterator{Iterator: "pruferCode"}
 					},
 				},
-				components.NewDropdown("Bijection", func(bi string) {
-					var Bijection model.Bijection
-
-					switch bi {
-					case "continous":
-						Bijection = model.NewBijection()
-
-					case "static":
-						Bijection = model.NewFakeBijection()
-
-					default:
-						fmt.Println("Uknown bijection choice: ", bi)
-						return
-					}
-
-					graph.Actions <- &actions.SetBijection{Bijection: Bijection}
-				}, "continous", "static"),
 
 				components.NewGraphFromPrufer(
 					graph.Actions,
 				),
+				components.NewDropdown("Bijection", func(bi string) {
+					graph.Actions <- &actions.SetLabeling{Labeling: bi}
+				}, "continous", "static"),
 			),
 			graph,
 			graphStats,

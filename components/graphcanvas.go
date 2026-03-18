@@ -58,7 +58,7 @@ type GraphCanvas struct {
 	Stats   *GraphStats
 	Mode    *ChoiceBar
 
-	nextId uint
+	Labeling string
 
 	// Bijection       model.Bijection
 	VertexPositions map[uint]model.Point
@@ -86,11 +86,12 @@ func InitGraphCanvas(size uint, id string) GraphCanvas {
 	}()
 
 	graph := GraphCanvas{
-		Size:    size,
-		Id:      id,
-		Graph:   gograph.New[uint](),
-		Actions: actionChan,
-		Mode:    NewChoiceBar(modeUpdates, "freeform", "ring"),
+		Size:     size,
+		Id:       id,
+		Graph:    gograph.New[uint](),
+		Actions:  actionChan,
+		Mode:     NewChoiceBar(modeUpdates, "freeform", "ring"),
+		Labeling: "continous",
 
 		// Bijection:       model.NewBijection(),
 		VertexPositions: make(map[uint]model.Point),
@@ -400,12 +401,45 @@ func (g *GraphCanvas) HandleMouseClick(mousePos model.Point, shift bool) actions
 	return result
 }
 
-func (g *GraphCanvas) FindNextLabel() {
+func (g *GraphCanvas) NextLabel() uint {
 
+	switch g.Labeling {
+
+	case "static":
+		for expected := range g.Graph.Order() {
+			if g.Graph.GetVertexByID(uint(expected)) == nil {
+				return uint(expected)
+			}
+		}
+		return uint(g.Graph.Order())
+
+	case "continous":
+		return uint(g.Graph.Order())
+
+	default:
+		panic("how did this happen")
+
+	}
 }
 
-func (g *GraphCanvas) NextLabel() uint {
-	return uint(g.Graph.Order())
+func (g *GraphCanvas) SetLabeling(labeling string) actions.Action {
+
+	switch labeling {
+	case "continous":
+
+		g.ensureSequential()
+
+	case "static":
+
+	default:
+		fmt.Println("Uknown labeling choice: ", labeling)
+		return nil
+	}
+
+	fmt.Println("set labelinng to: ", labeling)
+	g.Labeling = labeling
+	return &actions.Draw{}
+
 }
 
 func (g *GraphCanvas) AddVertex(id uint, point *model.Point, connected bool) actions.Action {
@@ -432,8 +466,6 @@ func (g *GraphCanvas) AddVertex(id uint, point *model.Point, connected bool) act
 	}
 
 	g.Graph.AddVertex(vertex)
-
-	// g.nextId++
 
 	fmt.Println("added vertex")
 
@@ -493,7 +525,9 @@ func (g *GraphCanvas) RemoveVertex(id *uint) actions.Action {
 		g.SelectedVertex = nil
 		g.ShiftSelected = nil
 
-		g.ensureSequential()
+		if g.Labeling == "continous" {
+			g.ensureSequential()
+		}
 
 		return &actions.RecomputeVertexPositions{}
 	} else {
@@ -632,11 +666,6 @@ func (g *GraphCanvas) UpdateStats() {
 // 	return &actions.Draw{}
 // }
 
-func (g *GraphCanvas) SetLabeling(labeling string) actions.Action {
-	fmt.Println("still gotta do this")
-	return nil
-}
-
 func (g *GraphCanvas) SetIterator(name string) actions.Action {
 	var iterator GraphIterator
 	var err error
@@ -644,6 +673,7 @@ func (g *GraphCanvas) SetIterator(name string) actions.Action {
 	switch name {
 	case "pruferCode":
 		iterator, err = NewPruferCodeIterator(g)
+		g.SetLabeling("continous")
 	default:
 		fmt.Println("Uknown iterator: ", name)
 		return nil
@@ -715,8 +745,8 @@ func (g *GraphCanvas) handleActions() {
 			case *actions.SetIterator:
 				a = g.SetIterator(action.Iterator)
 
-			// case *actions.SetLabeling:
-			// 	a = g.SetLabeling(action.Labeling)
+			case *actions.SetLabeling:
+				a = g.SetLabeling(action.Labeling)
 
 			case *actions.PopupMessage:
 				fmt.Println("Popup: ", action.Message)

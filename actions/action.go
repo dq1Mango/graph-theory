@@ -53,6 +53,6 @@ type SetIterator struct {
 	Iterator string
 }
 
-type SetBijection struct {
-	Bijection model.Bijection
+type SetLabeling struct {
+	Labeling string
 }
