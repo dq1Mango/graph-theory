@@ -6,6 +6,7 @@ import (
 	// "slices"
 
 	"github.com/dq1Mango/graph-theory/actions"
+	"github.com/dq1Mango/graph-theory/model"
 	"github.com/hexops/vecty"
 	"github.com/hexops/vecty/elem"
 	"github.com/hmdsefi/gograph"
@@ -76,6 +77,11 @@ func (a *AlgorithmWalk) Render() vecty.ComponentOrHTML {
 	}
 }
 
+type VertexWithPoint struct {
+	vertex *gograph.Vertex[uint]
+	point  model.Point
+}
+
 type PruferCodeIterator struct {
 	graph *GraphCanvas
 
@@ -84,7 +90,7 @@ type PruferCodeIterator struct {
 	neighbor     *uint
 
 	verticies        []*gograph.Vertex[uint]
-	removedVerticies []*gograph.Vertex[uint]
+	removedVerticies []VertexWithPoint
 	length           int
 }
 
@@ -111,7 +117,7 @@ func NewPruferCodeIterator(g *GraphCanvas) (GraphIterator, error) {
 		// super big capacity optimization here
 		prufer:           make([]uint, 0, length),
 		verticies:        verticies,
-		removedVerticies: make([]*gograph.Vertex[uint], 0, length),
+		removedVerticies: make([]VertexWithPoint, 0, length),
 		length:           int(length),
 	}
 
@@ -142,9 +148,15 @@ func (p *PruferCodeIterator) Next() error {
 	}
 
 	if p.smallestLeaf != nil && p.neighbor != nil {
+		p.removedVerticies = append(
+			p.removedVerticies,
+			VertexWithPoint{
+				vertex: p.verticies[*p.smallestLeaf],
+				point:  p.graph.VertexPositions[*p.smallestLeaf],
+			},
+		)
 		p.graph.RemoveVertex(p.smallestLeaf)
 
-		p.removedVerticies = append(p.removedVerticies, p.verticies[*p.smallestLeaf])
 		// p.verticies = slices.Delete(p.verticies, index, index+1)
 		p.verticies[*p.smallestLeaf] = nil
 
@@ -194,42 +206,34 @@ func (p *PruferCodeIterator) Previous() error {
 		return &IteratorEnd{}
 	}
 
-	var i uint = uint(p.length) + 1
-	for true {
-		vertex := p.verticies[i]
+	end := len(p.removedVerticies) - 1
+	lastRemoved := p.removedVerticies[end]
+	removedLabel := lastRemoved.vertex.Label()
+	// lastId := lastRemoved.Label()
 
-		if vertex == nil {
+	p.graph.SelectedVertex = &removedLabel
+	p.smallestLeaf = &removedLabel
 
-			end := len(p.removedVerticies) - 1
-			lastRemoved := p.removedVerticies[end]
-			p.removedVerticies = p.removedVerticies[:end]
-			p.verticies[i] = lastRemoved
-			// lastId := lastRemoved.Label()
+	p.graph.ShiftSelected = &p.prufer[end]
+	p.neighbor = &p.prufer[end]
 
-			p.graph.SelectedVertex = &i
-			p.smallestLeaf = &i
+	// pos := p.graph.VertexPositions[lastRemoved.vertex.Label()]
+	p.graph.AddVertex(removedLabel, &lastRemoved.point, false)
+	p.graph.AddEdge(&removedLabel, &p.prufer[end])
 
-			p.graph.ShiftSelected = &p.prufer[end]
-			p.neighbor = &p.prufer[end]
+	p.verticies[removedLabel] = p.graph.Graph.GetVertexByID(removedLabel)
+	fmt.Println(p.verticies[removedLabel])
 
-			pos := p.graph.VertexPositions[lastRemoved.Label()]
-			p.graph.AddVertex(i, &pos, false)
-			p.graph.AddEdge(&i, &p.prufer[end])
+	p.prufer = p.prufer[:end]
+	p.removedVerticies = p.removedVerticies[:end]
 
-			p.prufer = p.prufer[:end]
+	p.graph.Actions <- &actions.Draw{}
 
-			p.graph.Actions <- &actions.Draw{}
-
-			return nil
-		}
-
-		i--
-
-	}
+	return nil
 
 	// p.graph.Bijection.Set(lastRemoved.Label(), i)
 
-	panic("should't be possible")
+	// panic("should't be possible")
 }
 func (p *PruferCodeIterator) Iterate() error {
 	for p.Yield() {

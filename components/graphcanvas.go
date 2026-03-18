@@ -673,7 +673,9 @@ func (g *GraphCanvas) SetIterator(name string) actions.Action {
 	switch name {
 	case "pruferCode":
 		iterator, err = NewPruferCodeIterator(g)
-		g.SetLabeling("continous")
+		g.SetLabeling("static")
+		g.Mode.SetMode(FreeForm)
+
 	default:
 		fmt.Println("Uknown iterator: ", name)
 		return nil
